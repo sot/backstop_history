@@ -2,7 +2,7 @@
 from setuptools import setup
 from backstop_history import __version__
 
-url = 'https://github.com/acisops/nackstop_history/tarball/{}'.format(__version__)
+url = 'https://github.com/acisops/backstop_history/tarball/{}'.format(__version__)
 
 setup(name='backstop_history',
       packages=["backstop_history"],
