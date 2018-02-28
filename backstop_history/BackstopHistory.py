@@ -387,7 +387,7 @@ emacs         ine one program
     
         # Read the commands located in that backstop file
         bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        print '    GET_VEHICLE_ONLY_CMDS - UFound %d backstop commands between %s and %s' % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[
+        print '    GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[
     -1]['date'])
     
         return(bs_cmds, bs_name)
@@ -587,9 +587,8 @@ emacs         ine one program
         # between the shutdown_date and the time of the first command in "rev_bs_cmds"
         # These could be both NSM and OCC-commanded pitch changes.
         MAN_date, pitch, roll, q1, q2, q3, q4 = self.FindMANs(shutdown_date, rev_bs_cmds[0]['time'])
-#        if MAN_date == None:
-#            print "\n    No MANEUVER found"
-#        else:
+
+        # If a maneruver was found in the NLET file process it and add it's commands
         while(MAN_date != None):
             # If this is a legal maneuver, process it
             if pitch != 0.0:
