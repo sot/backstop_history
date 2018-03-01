@@ -40,7 +40,8 @@ def globfile(pathglob):
 
 class BackstopHistory(object):
 
-    def __init__(self, cont_file_name = 'ACIS-Continuity.txt', NLET_tracking_file_path = '/data/acis/LoadReviews/NonLoadTrackedEvents.txt'):
+    def __init__(self, cont_file_name='ACIS-Continuity.txt', 
+                 NLET_tracking_file_path='/data/acis/LoadReviews/NonLoadTrackedEvents.txt'):
         self.master_list = []
         self.rev_to_take = []
         self.load_list = []
@@ -53,7 +54,10 @@ class BackstopHistory(object):
 
 
         # Create a Dtype for the Continuity Info array
-        self.cont_dtype = [('base_load', '|S20'), ('cont_file', '|S80'), ('load_type', '|S10'), ('load_tofc', '|S25')]
+        self.cont_dtype = [('base_load', '|S20'),
+                           ('cont_file', '|S80'), 
+                           ('load_type', '|S10'), 
+                           ('load_tofc', '|S25')]
 
         # Create the SCS-107 command set that's relevant for ACIS
         # Now the SCS-107 on board is an RTS so the times and
@@ -215,7 +219,7 @@ class BackstopHistory(object):
     
         After being used once, the lists should be cleared by calling
         self.clear_backstop_lists if you are running two or more histories 
-emacs         ine one program
+        in one program
         """
         if load_week != None:
             self.load_list.insert(0, load_week)
@@ -231,7 +235,7 @@ emacs         ine one program
 # method clear_backstop_lists - Clear out the load and backstop file history lists
 #
 #-------------------------------------------------------------------------------
-    def clear_backstop_lists(self,):
+    def clear_backstop_lists(self):
         """
         Clearing out  self.load_list and self.backstop_list
         """
@@ -245,7 +249,7 @@ emacs         ine one program
 #                               name  history lists
 #
 #-------------------------------------------------------------------------------
-    def print_backstop_lists(self,):
+    def print_backstop_lists(self):
         """
         Print out  self.load_list and self.backstop_list
         """
@@ -431,7 +435,7 @@ emacs         ine one program
         # string located in the key: "date". This will interleave all the 
         # commands correctly.
 #        self.master_list = sorted (newlist, key=lambda k: k['date'])
-        self.master_list = sorted (newlist, key=lambda k: k['time'])
+        self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the sorted command list to the caller
         return(self.master_list)
@@ -480,7 +484,7 @@ emacs         ine one program
         # to the master list
         newlist = self.master_list + rev_bs_cmds
 
-        self.master_list = sorted (newlist, key=lambda k: k['time'])
+        self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         return(self.master_list)
     
@@ -658,7 +662,7 @@ emacs         ine one program
         newlist =  self.master_list + rev_bs_cmds
 
         # sort them
-        self.master_list = sorted (newlist, key=lambda k: k['time'])
+        self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         return(self.master_list)
     
@@ -786,7 +790,7 @@ emacs         ine one program
             # Concatenate the LTCTI run to the master list
             self.master_list += trimmed_LTCTI_bs_cmds
             # Sort the master list
-            self.master_list = sorted (self.master_list, key=lambda k: k['time'])
+            self.master_list = sorted(self.master_list, key=lambda k: k['time'])
     
         # STEP 4
         vo_bs_cmds_trimmed = self.Trim_bs_cmds_Before_Date(vo_cut_date, vo_bs_cmds)
@@ -808,7 +812,7 @@ emacs         ine one program
         newlist =  self.master_list + rev_bs_cmds
  
         # sort them
-        self.master_list = sorted (newlist, key=lambda k: k['time'])
+        self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the expanded Master List to the caller
         return(self.master_list)
@@ -1212,7 +1216,8 @@ emacs         ine one program
     #                              the full path to the OFLS directory is written out.
     #
     #-------------------------------------------------------------------------------
-    def write_back_chain_to_pickle(self, format = 'ACIS', file_path = '/home/gregg/DPAMODEL/dpa_check/Chain.p', chain = None):
+    def write_back_chain_to_pickle(self, format='ACIS', 
+                                   file_path='/home/gregg/DPAMODEL/dpa_check/Chain.p', chain=None):
         """
         Given a backchain, and a file path, write the contents of the backchain to a pickle file.
         If the "format" argumen is "ACIS' then the full path to the ACIS ofls directory is
@@ -1264,7 +1269,8 @@ emacs         ine one program
     #                           the full path to the OFLS directory is written out.
     #
     #-------------------------------------------------------------------------------
-    def write_back_chain_to_txt(self, format = 'ACIS', file_path = '/home/gregg/DPAMODEL/dpa_check/Chain.txt', chain = None):
+    def write_back_chain_to_txt(self, format='ACIS', 
+                                file_path='/home/gregg/DPAMODEL/dpa_check/Chain.txt', chain=None):
         """
         Given a backchain, and a file path, write the contents of the backchain to a text file.
         If the "format" argumen is "ACIS' then the full path to the ACIS ofls directory is
@@ -1314,7 +1320,7 @@ emacs         ine one program
     #                            variable.
     #
     #-------------------------------------------------------------------------------
-    def read_back_chain_from_txt(self,  file_path = '/home/gregg/DPAMODEL/dpa_check/Chain.txt'):
+    def read_back_chain_from_txt(self, file_path='/home/gregg/DPAMODEL/dpa_check/Chain.txt'):
         """
         Given a path to a txt file written by write_back_chain_to_txt, 
         read the contents of the text file and store it in an array
