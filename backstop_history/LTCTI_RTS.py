@@ -213,7 +213,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
         duration_secs = sum(float(n) * m for n, m in zip(time_string.split(':'), (86400.0, 3600.0, 60.0, 1)))
     
         # return the converted duration
-        return(duration_secs)
+        return duration_secs
     
     #-------------------------------------------------------------------------------
     #   
@@ -384,7 +384,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
         rts_load.close()
         
         # Return the RTS_cmds array
-        return(RTS_cmds)
+        return RTS_cmds
     
     
     
@@ -469,7 +469,7 @@ array([ ('2018:001:00:00:00.00', 631152069.184, '/CMD', 'OORMPEN', 'None', 'None
             step +=1
 
         # Return the updated dictionary
-        return(RTS_ska_bs)
+        return RTS_ska_bs
     
     
     #-------------------------------------------------------------------------------
@@ -482,4 +482,4 @@ array([ ('2018:001:00:00:00.00', 631152069.184, '/CMD', 'OORMPEN', 'None', 'None
         This is the method you overload if you want to convert every command
         in the RTS_cmds array into SKA.Parse format
         """
-        return(None)
+        pass

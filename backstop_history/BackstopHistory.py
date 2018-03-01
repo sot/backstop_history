@@ -318,9 +318,9 @@ class BackstopHistory(object):
             ofls_cont_file.close()
     
             # Return the Continuity load path to the caller.
-            return(continuity_load_path, review_load_type, interrupt_time)
+            return continuity_load_path, review_load_type, interrupt_time
         else:
-            return(None,None,None)
+            return None,None,None
 
 #-------------------------------------------------------------------------------
 #
@@ -354,8 +354,7 @@ class BackstopHistory(object):
         print '    GET_BS_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[
     -1]['date'])
     
-        return(bs_cmds, bs_name)
-    
+        return bs_cmds, bs_name 
     
 #-------------------------------------------------------------------------------
 #
@@ -390,8 +389,7 @@ class BackstopHistory(object):
         print '    GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[
     -1]['date'])
     
-        return(bs_cmds, bs_name)
-    
+        return bs_cmds, bs_name 
 
 #-------------------------------------------------------------------------------
 #
@@ -438,7 +436,7 @@ class BackstopHistory(object):
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the sorted command list to the caller
-        return(self.master_list)
+        return self.master_list
     
     
     
@@ -486,7 +484,7 @@ class BackstopHistory(object):
 
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
-        return(self.master_list)
+        return self.master_list
     
     
     
@@ -583,13 +581,13 @@ class BackstopHistory(object):
         #           BSH - stuck at some pitch - ALL Stop
         #     OCC Pitch Maneuver - Move to a new pitch.
         #
-        # Next we determine if a MAN  (maneuver) entry exists in the NLET file 
+        # Next we determine if a MAN (maneuver) entry exists in the NLET file 
         # between the shutdown_date and the time of the first command in "rev_bs_cmds"
         # These could be both NSM and OCC-commanded pitch changes.
         MAN_date, pitch, roll, q1, q2, q3, q4 = self.FindMANs(shutdown_date, rev_bs_cmds[0]['time'])
 
-        # If a maneruver was found in the NLET file process it and add it's commands
-        while(MAN_date != None):
+        # If a maneuver was found in the NLET file process it and add it's commands
+        while MAN_date != None:
             # If this is a legal maneuver, process it
             if pitch != 0.0:
                 print "\n     MANEUVER FOUND!", MAN_date
@@ -664,7 +662,7 @@ class BackstopHistory(object):
         # sort them
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
-        return(self.master_list)
+        return self.master_list
     
     
 #-------------------------------------------------------------------------------
@@ -815,8 +813,7 @@ class BackstopHistory(object):
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the expanded Master List to the caller
-        return(self.master_list)
-    
+        return self.master_list 
 
 
     #-------------------------------------------------------------------------------
@@ -882,7 +879,7 @@ class BackstopHistory(object):
         trimmed_list = [cmd for cmd in cmd_list if cmd['time'] < trim_time]
        
         # Return the trimmed list
-        return(trimmed_list)
+        return trimmed_list
 
 
     
@@ -923,7 +920,7 @@ class BackstopHistory(object):
         trimmed_list = [cmd for cmd in cmd_list if cmd['time'] >= trim_time]
        
         # Return the trimmed list
-        return(trimmed_list)
+        return trimmed_list
 
 
     #-------------------------------------------------------------------------------
@@ -1012,7 +1009,7 @@ class BackstopHistory(object):
         #
         # If you have not exceeded the requested chain length and
         # there is continuity info, tack it onto the load chain array
-        while ( len(load_chain)  < chain_length) and (continuity_info[0] != None):
+        while len(load_chain) < chain_length and continuity_info[0] is not None:
     
             continuity_load_path = continuity_info[0]
     
@@ -1035,7 +1032,7 @@ class BackstopHistory(object):
              
 
         # Return the array of back chains
-        return(load_chain)
+        return load_chain
 
     #-------------------------------------------------------------------------------
     #
@@ -1116,7 +1113,7 @@ class BackstopHistory(object):
     
         # Return items from any found netline; or Nones if 
         # no LTCTI line matched the requirements.
-        return(ltcti_date, ltcti_rts_file, ltcti_cap_number, ltcti_duration )
+        return ltcti_date, ltcti_rts_file, ltcti_cap_number, ltcti_duration
 
 
 
@@ -1206,7 +1203,7 @@ class BackstopHistory(object):
     
         # Return items from any found netline; or Nones if 
         # no LTCTI line matched the requirements.
-        return(MAN_date, MAN_pitch, MAN_roll, MAN_q1, MAN_q2, MAN_q3, MAN_q4 )
+        return MAN_date, MAN_pitch, MAN_roll, MAN_q1, MAN_q2, MAN_q3, MAN_q4
 
 
     #-------------------------------------------------------------------------------
@@ -1329,4 +1326,4 @@ class BackstopHistory(object):
         # Read the file
         chain = np.loadtxt(file_path, self.cont_dtype)
         # Return the array
-        return(chain)
+        return chain
