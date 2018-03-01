@@ -4,11 +4,7 @@
 #
 ################################################################################
 
-# Always include this to be sure of getting the new style classes
-
-__metaclass__ = type
-
-class LTCTI_ACIS_commands:
+class LTCTI_ACIS_commands(object):
     """
     The Backstop_Commands class is used when translating an ACIS
     command line found in such files as a LTCTI_CLD.txt file

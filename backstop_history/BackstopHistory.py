@@ -19,7 +19,7 @@ import LTCTI_RTS
 import Ska.ParseCM
 from Chandra.Time import DateTime
 
-class BackstopHistory:
+class BackstopHistory(object):
 
     def __init__(self, cont_file_name = 'ACIS-Continuity.txt', NLET_tracking_file_path = '/data/acis/LoadReviews/NonLoadTrackedEvents.txt'):
         self.master_list = []

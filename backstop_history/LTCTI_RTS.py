@@ -2,10 +2,6 @@ import numpy as np
 import os
 import re
 
-# Always include this to be sure of getting the new style classes
-
-__metaclass__ = type
-
 # Import the class that contains individual command data for all
 # the commands which are relevant to LTCTI runs
 import LTCTI_ACIS_commands
@@ -13,7 +9,7 @@ import LTCTI_ACIS_commands
 from Chandra.Time import DateTime
 
 
-class LTCTI_RTS:
+class LTCTI_RTS(object):
     """
     This class allows the user to convert a FOT, ACIS, LTCTI, RTS file, along with
     information found in a FOT Request, and generate a list of dicts where each line in the RTS file is
