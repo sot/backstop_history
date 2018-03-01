@@ -17,5 +17,6 @@ setup(name='backstop_history',
           'Intended Audience :: Science/Research',
           'Operating System :: OS Independent',
           'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3.6',
       ],
       zip_safe=False)
