@@ -9,6 +9,7 @@
 #
 #
 ################################################################################
+from __future__ import print_function
 import copy
 import glob
 import numpy as np
@@ -253,9 +254,9 @@ class BackstopHistory(object):
         """
         Print out  self.load_list and self.backstop_list
         """
-        print self.load_list[:]
-        print self.backstop_list[:]
-        print self.load_type_list[:]
+        print(self.load_list)
+        print(self.backstop_list)
+        print(self.load_type_list)
     
 #-------------------------------------------------------------------------------
 #
