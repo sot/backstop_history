@@ -304,10 +304,10 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                 
                 # /CMD or ACIS STATEMENT
                 # Find out what the statement value is (/CMD or ACIS)
-                if(filter(cmd_statement_match.match, split_line)):
+                if filter(cmd_statement_match.match, split_line):
                     # It's a /CMD line so set the statement to /CMD
                     statement = '/CMD'
-                elif (filter(acis_statement_match.match, split_line)):
+                elif filter(acis_statement_match.match, split_line):
                     # It's a /CMD line so set the statement to /CMD
                     statement = 'ACIS'
                 else:
@@ -315,7 +315,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                     statement = None
 
                 # MNEMONIC
-                if statement != None:
+                if statement is not None:
                     # Find the position in the list of the statment
                     # It's usually the first line but don't make assumptions
                     statement_pos = split_line.index(statement)

@@ -221,13 +221,13 @@ class BackstopHistory(object):
         self.clear_backstop_lists if you are running two or more histories 
         in one program
         """
-        if load_week != None:
+        if load_week is not None:
             self.load_list.insert(0, load_week)
 
-        if backstop_name != None:
+        if backstop_name is not None:
             self.backstop_list.insert(0, backstop_name)
     
-        if load_type != None:
+        if load_type is not None:
             self.load_type_list.insert(0, load_type)
 
 #-------------------------------------------------------------------------------
@@ -320,7 +320,7 @@ class BackstopHistory(object):
             # Return the Continuity load path to the caller.
             return continuity_load_path, review_load_type, interrupt_time
         else:
-            return None,None,None
+            return None, None, None
 
 #-------------------------------------------------------------------------------
 #
@@ -586,8 +586,7 @@ class BackstopHistory(object):
         # These could be both NSM and OCC-commanded pitch changes.
         MAN_date, pitch, roll, q1, q2, q3, q4 = self.FindMANs(shutdown_date, rev_bs_cmds[0]['time'])
 
-        # If a maneuver was found in the NLET file process it and add it's commands
-        while MAN_date != None:
+        while MAN_date is not None:
             # If this is a legal maneuver, process it
             if pitch != 0.0:
                 print "\n     MANEUVER FOUND!", MAN_date
@@ -637,7 +636,7 @@ class BackstopHistory(object):
         RTS_start_date, self.RTS.RTS_name, self.RTS.CAP_num,  self.RTS.NUM_HOURS = self.FindLTCTIrun(shutdown_date , rev_bs_cmds[0]['time'])
 
         # If an LTCTI run was found, add it to the master list
-        if RTS_start_date != None:
+        if RTS_start_date is not None:
             # Process the specified RTS file and get a time-stamped numpy array of the data
             cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
     
@@ -773,7 +772,7 @@ class BackstopHistory(object):
         RTS_start_date, self.RTS.RTS_name, self.RTS.CAP_num,  self.RTS.NUM_HOURS = self.FindLTCTIrun(shutdown_date , rev_bs_cmds[0]['time'])
 
         # If an LTCTI run was found, add it to the master list
-        if RTS_start_date != None:
+        if RTS_start_date is not None:
             # Process the specified RTS file and get a time-stamped numpy array of the data
             cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
     
