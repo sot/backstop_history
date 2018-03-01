@@ -3,8 +3,6 @@
 #  CTI_RTS_Backstop_Commands - Base Class Definition
 #
 ################################################################################
-from Chandra.Time import DateTime
-import numpy as np
 
 # Always include this to be sure of getting the new style classes
 
