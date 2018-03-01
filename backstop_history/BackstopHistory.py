@@ -19,6 +19,25 @@ import LTCTI_RTS
 import Ska.ParseCM
 from Chandra.Time import DateTime
 
+
+# -------------------------------------------------------------------------------
+#
+#  globfile
+#
+# -------------------------------------------------------------------------------
+def globfile(pathglob):
+    """Return the one file name matching ``pathglob``.  Zero or multiple
+    matches raises an IOError exception."""
+
+    files = glob.glob(pathglob)
+    if len(files) == 0:
+        raise IOError('No files matching %s' % pathglob)
+    elif len(files) > 1:
+        raise IOError('Multiple files matching %s' % pathglob)
+    else:
+        return files[0]
+
+
 class BackstopHistory(object):
 
     def __init__(self, cont_file_name = 'ACIS-Continuity.txt', NLET_tracking_file_path = '/data/acis/LoadReviews/NonLoadTrackedEvents.txt'):
@@ -172,24 +191,6 @@ class BackstopHistory(object):
                                 'time': -1.0,
                                 'tlmsid': 'AONSMSAF',
                                 'vcdu': 0000000}
-
-
-#-------------------------------------------------------------------------------
-#
-#  globfile
-#
-#-------------------------------------------------------------------------------
-    def globfile(self, pathglob):
-        """Return the one file name matching ``pathglob``.  Zero or multiple
-        matches raises an IOError exception."""
-    
-        files = glob.glob(pathglob)
-        if len(files) == 0:
-            raise IOError('No files matching %s' % pathglob)
-        elif len(files) > 1:
-            raise IOError('Multiple files matching %s' % pathglob)
-        else:
-            return files[0]
     
 
 #-------------------------------------------------------------------------------
@@ -338,7 +339,7 @@ emacs         ine one program
                                 -  list of dictionary items
     
         """
-        backstop_file_path = self.globfile(os.path.join(oflsdir, 'CR*.backstop'))
+        backstop_file_path = globfile(os.path.join(oflsdir, 'CR*.backstop'))
         print'    GET_BS_CMDS - Using backstop file %s' % backstop_file_path
     
         # Extract the name of the backstop file from the path
@@ -374,7 +375,7 @@ emacs         ine one program
                                 -  list of dictionary items
     
         """
-        backstop_file_path = self.globfile(os.path.join(oflsdir+'/vehicle/', 'VR*.backstop'))
+        backstop_file_path = globfile(os.path.join(oflsdir+'/vehicle/', 'VR*.backstop'))
         print'    GET_BS_CMDS - Using backstop file %s' % backstop_file_path
     
         # Extract the name of the backstop file from the path
