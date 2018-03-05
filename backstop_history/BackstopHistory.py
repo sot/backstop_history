@@ -293,7 +293,7 @@ class BackstopHistory(object):
 #-------------------------------------------------------------------------------
     def print_backstop_lists(self):
         """
-        Print out  self.load_list and self.backstop_list
+        Print out self.load_list and self.backstop_list
         """
         print(self.load_list)
         print(self.backstop_list)
