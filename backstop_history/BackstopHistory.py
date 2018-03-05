@@ -332,11 +332,12 @@ class BackstopHistory(object):
                      
         """
         # Does a Continuity file exist for the input path
-        if os.path.isfile(oflsdir+'/'+self.continuity_file_name):
+        ofls_cont_fn = os.path.join(oflsdir, self.continuity_file_name)
+        if os.path.exists(ofls_cont_fn):
     
             # Open the Continuity text file in the ofls directory and read the name of the 
             # continuity load date (e.g. FEB2017).  then close the file
-            ofls_cont_file = open(oflsdir+'/'+self.continuity_file_name, 'r')
+            ofls_cont_file = open(ofls_cont_fn, 'r')
             # Read the first line...the pat to the continuity load
             continuity_load_path = ofls_cont_file.readline()[:-1]
     
@@ -389,7 +390,7 @@ class BackstopHistory(object):
         self.logger.info("GET_BS_CMDS - Using backstop file %s" % backstop_file_path)
     
         # Extract the name of the backstop file from the path
-        bs_name = backstop_file_path.split('/')[-1]
+        bs_name = os.path.split(backstop_file_path)[-1]
     
         # Read the commands located in that backstop file
         bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
@@ -421,11 +422,11 @@ class BackstopHistory(object):
                                 -  list of dictionary items
     
         """
-        backstop_file_path = globfile(os.path.join(oflsdir+'/vehicle/', 'VR*.backstop'))
+        backstop_file_path = globfile(os.path.join(oflsdir, "vehicle", 'VR*.backstop'))
         self.logger.info('GET_BS_CMDS - Using backstop file %s' % backstop_file_path)
     
         # Extract the name of the backstop file from the path
-        bs_name = backstop_file_path.split('/')[-1]
+        bs_name = os.path.split(backstop_file_path)[-1]
     
         # Read the commands located in that backstop file
         bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
@@ -1018,18 +1019,13 @@ class BackstopHistory(object):
                                  Therefore you cannont back Chain further beyond
                                  The January 30th load.
    
-        """        
+        """
         # Create an empty load chain array
-        load_chain = np.array( [], dtype = self.cont_dtype)
+        load_chain = np.array([], dtype=self.cont_dtype)
 
         # Extract the base load week from the full path
-        # eliminate a trailing '/' if it's there. 
         # This is entered in the first column of the resultant array
-        if base_load_dir[-1] == '/':
-            base_load_week = base_load_dir.split('/')[-3]
-        else:
-            base_load_week = base_load_dir.split('/')[-2]
-        
+        base_load_week = os.path.split(base_load_dir)[-2]
         # Extract the continuity info from the Load week. 
         # REMEMBER: this information is with regard to the
         # input load. It's the Continuity file that leads to the
