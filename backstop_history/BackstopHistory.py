@@ -646,7 +646,7 @@ class BackstopHistory(object):
                 new_maneuver['params']['Q3'] = float(q3)
                 new_maneuver['params']['Q4'] = float(q4)
                 new_maneuver['time'] = DateTime(MAN_date).secs
-                paramstr = 'TLMSID= AOUPTARQ, CMDS= 8, Q1= '+str(q1)+', Q2= '+str(q2)+', Q3= '+str(q3)+', Q4= '+str(q4)+'SCS= 1, STEP= 1'
+                paramstr = 'TLMSID= AOUPTARQ, CMDS= 8, Q1= %s, Q2= %s, Q3= %s, Q4= %s, SCS= 1, STEP= 1' % (q1, q2, q3, q4)
                 new_maneuver['paramstr'] = paramstr
     
                 # Tack the maneuver to the Master List
@@ -881,7 +881,9 @@ class BackstopHistory(object):
         combofile = open(outfile_path, "w")
         for eachcmd in cmd_list:
             if eachcmd['cmd'] != 'GET_PITCH':
-                cmd_line = eachcmd['date']+" | "+str(eachcmd['vcdu']).zfill(7)+" | "+eachcmd['cmd']+" | "+eachcmd['paramstr']+"\n"
+                cmd_line = eachcmd['date'] + " | %s | %s | %s\n" % (eachcmd['vcdu'].zfill(7),
+                                                                    eachcmd['cmd'],
+                                                                    eachcmd['paramstr'])
                 combofile.write(cmd_line)
 
         combofile.close()
