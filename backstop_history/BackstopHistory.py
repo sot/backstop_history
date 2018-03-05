@@ -650,7 +650,7 @@ class BackstopHistory(object):
                 new_maneuver['paramstr'] = paramstr
     
                 # Tack the maneuver to the Master List
-                self.master_list += [new_maneuver]
+                self.master_list.append(new_maneuver)
       
             else: # It's a bogus maneuver entry - the user didn't specify good Q's
                 self.logger.warning("Bogus Maneuver Entry! Quaternions badly specified: \n"
@@ -670,7 +670,7 @@ class BackstopHistory(object):
             # Tacking the command to the Master list doesn't really do much if there
             # is no AOUPTARQ command. But it allows you to search for subsequent maneuver 
             # commands
-            self.master_list += [aoman]
+            self.master_list.append(aoman)
 
             # See if there is another one between the one you found and the beginning of the
             # assembled load
