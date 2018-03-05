@@ -35,7 +35,6 @@ class BackstopHistory:
         self.continuity_file_name = cont_file_name
         self.NLET_tracking_file_path = NLET_tracking_file_path
         # Full path to RTS files
-#OOOOO        self.RTS = LTCTI_RTS.LTCTI_RTS('/home/gregg/MODELS/ACIS_HISTORY_ASSEMBLY/RTS/')
         self.RTS = LTCTI_RTS.LTCTI_RTS(rts_dir+'/')
 
 
