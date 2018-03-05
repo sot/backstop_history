@@ -14,6 +14,7 @@ import copy
 import glob
 import numpy as np
 import os
+import logging
 
 import LTCTI_RTS
 
@@ -38,11 +39,51 @@ def globfile(pathglob):
     else:
         return files[0]
 
+def config_logger(verbose):
+    """
+    Set up console logger.
+
+    Parameters
+    ----------
+    verbose : integer
+        Indicate how verbose we want the logger to be.
+        (0=quiet, 1=normal, 2=debug)
+    """
+
+    # Disable auto-configuration of root logger by adding a null handler.
+    # This prevents other modules (e.g. Chandra.cmd_states) from generating
+    # a streamhandler by just calling logging.info(..).
+    class NullHandler(logging.Handler):
+        def emit(self, record):
+            pass
+    rootlogger = logging.getLogger()
+    rootlogger.addHandler(NullHandler())
+    logger = logging.getLogger("backstop_history")
+    logger.setLevel(logging.DEBUG)
+
+    # Set numerical values for the different log levels
+    loglevel = {0: logging.CRITICAL,
+                1: logging.INFO,
+                2: logging.DEBUG}.get(verbose, logging.INFO)
+
+    formatter = logging.Formatter('%(message)s')
+
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    console.setLevel(loglevel)
+    logger.addHandler(console)
+    
+    return logger
+
 
 class BackstopHistory(object):
 
     def __init__(self, cont_file_name='ACIS-Continuity.txt', 
-                 NLET_tracking_file_path='/data/acis/LoadReviews/NonLoadTrackedEvents.txt'):
+                 NLET_tracking_file_path='/data/acis/LoadReviews/NonLoadTrackedEvents.txt',
+                 logger=None, verbose=1):
+        if logger is None:
+            logger = config_logger(verbose)
+        self.logger = logger
         self.master_list = []
         self.rev_to_take = []
         self.load_list = []
@@ -345,15 +386,16 @@ class BackstopHistory(object):
     
         """
         backstop_file_path = globfile(os.path.join(oflsdir, 'CR*.backstop'))
-        print'    GET_BS_CMDS - Using backstop file %s' % backstop_file_path
+        self.logger.info("GET_BS_CMDS - Using backstop file %s" % backstop_file_path)
     
         # Extract the name of the backstop file from the path
         bs_name = backstop_file_path.split('/')[-1]
     
         # Read the commands located in that backstop file
         bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        print '    GET_BS_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[
-    -1]['date'])
+        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s" % (len(bs_cmds), 
+                                                                                         bs_cmds[0]['date'], 
+                                                                                         bs_cmds[-1]['date']))
     
         return bs_cmds, bs_name 
     
@@ -380,15 +422,16 @@ class BackstopHistory(object):
     
         """
         backstop_file_path = globfile(os.path.join(oflsdir+'/vehicle/', 'VR*.backstop'))
-        print'    GET_BS_CMDS - Using backstop file %s' % backstop_file_path
+        self.logger.info('GET_BS_CMDS - Using backstop file %s' % backstop_file_path)
     
         # Extract the name of the backstop file from the path
         bs_name = backstop_file_path.split('/')[-1]
     
         # Read the commands located in that backstop file
         bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        print '    GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[
-    -1]['date'])
+        self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), 
+                                                                                                   bs_cmds[0]['date'], 
+                                                                                                   bs_cmds[-1]['date']))
     
         return bs_cmds, bs_name 
 
@@ -590,7 +633,7 @@ class BackstopHistory(object):
         while MAN_date is not None:
             # If this is a legal maneuver, process it
             if pitch != 0.0:
-                print "\n     MANEUVER FOUND!", MAN_date
+                self.logger.info("MANEUVER FOUND! %s" % MAN_date)
                 # Now form and add the command (in SKA.Parse format - i.e. dict) which
                 # specifies the MP_TARGQUAT 
                 new_maneuver = copy.deepcopy(self.MAN_bs_cmds)
@@ -609,9 +652,9 @@ class BackstopHistory(object):
                 self.master_list += [new_maneuver]
       
             else: # It's a bogus maneuver entry - the user didn't specify good Q's
-                print "Bogus Maneuver Entry! Quaternions badly specified: \n"
-                print "Bad Q's: ", q1, q2, q3, q4
-                print "...therefore bogus pitch and roll: ", pitch, roll
+                self.logger.warning("Bogus Maneuver Entry! Quaternions badly specified: \n"
+                                    "Bad Q's: %g, %g, %g, %g " % (q1, q2, q3, q4) +
+                                    "...therefore bogus pitch and roll: %g, %g" % (pitch, roll))
 
             # Create the AOMANUVR command and add it to the Master List.
             # This command actually kicks the maneuver off.
@@ -767,7 +810,8 @@ class BackstopHistory(object):
 
 
         # STEP 3
-        print "\n    STEP - 3 Check for a LTCTI between: ",self.master_list[-1]['date'] , rev_bs_cmds[0]['date']
+        self.logger.info("STEP - 3 Check for a LTCTI between: %s - %s" % (self.master_list[-1]['date'], 
+                                                                          rev_bs_cmds[0]['date']))
         # Next we determine if there is a Long Term CTI run that was done between the
         # last time in the master list and the time of the first command in "rev_bs_cmds"
         RTS_start_date, self.RTS.RTS_name, self.RTS.CAP_num,  self.RTS.NUM_HOURS = self.FindLTCTIrun(shutdown_date , rev_bs_cmds[0]['time'])
