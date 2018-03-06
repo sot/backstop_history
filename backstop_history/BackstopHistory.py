@@ -26,7 +26,7 @@ from Chandra.Time import DateTime
 
 class BackstopHistory:
 
-    def __init__(self, rts_dir, cont_file_name = 'ACIS-Continuity.txt', NLET_tracking_file_path = '/data/acis/LoadReviews/NonLoadTrackedEvents.txt'):
+    def __init__(self, cont_file_name = 'ACIS-Continuity.txt', NLET_tracking_file_path = '/data/acis/LoadReviews/NonLoadTrackedEvents.txt'):
         self.master_list = []
         self.rev_to_take = []
         self.load_list = []
@@ -35,7 +35,7 @@ class BackstopHistory:
         self.continuity_file_name = cont_file_name
         self.NLET_tracking_file_path = NLET_tracking_file_path
         # Full path to RTS files
-        self.RTS = LTCTI_RTS.LTCTI_RTS(rts_dir+'/')
+        self.RTS = LTCTI_RTS.LTCTI_RTS(os.path.dirname(__file__))
 
 
         # Create a Dtype for the Continuity Info array
