@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import re
 
 # Always include this to be sure of getting the new style classes
@@ -14,14 +15,14 @@ from Chandra.Time import DateTime
 
 class LTCTI_RTS:
     """
-    This class allows the user to convert a FOT, ACIS, LTCTI, RTS file, along with a
-    FOT request, and generate a list of dicts where each line in the RTS file is
+    This class allows the user to convert a FOT, ACIS, LTCTI, RTS file, along with
+    information found in a FOT Request, and generate a list of dicts where each line in the RTS file is
     processed and converted to a dict in the SKA.parse format. Each dict is appended
     to an output list.
 
     The format of the RTS file and the FOT request are described in OP-19.
 
-    An example line from the FOT request looks like this:
+    An example line from the LTCTI FOT request looks like this:
 
         RTSLOAD,1_CTI06,SCS_NUM=135,NUM_HOURS=001:15:00:00
 
@@ -44,6 +45,10 @@ class LTCTI_RTS:
     The method processRTS() takes the start time and any DELTA parameter in the RTS line
     and calculates the execution time of the command. If no DELTA appears in the line
     being processed then the last computed time is used.
+
+
+    You can process an actual FOT request, like the example above, or get the values from
+    some other means, such as the Non-Load Event Tracking file.
 
     The conversion is a three step process:
 
@@ -78,46 +83,14 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                     If you wish to translate them all, then use this class as a Base class
                     and overload the convert_RTS_to_ska_parse() method.
 
-    Here is a sample program to process an RTS file through all three steps:
 
-         import LTCTI_RTS
-    
-         # These are you inputs which will be specific to your run
-         fot_request = '1_CTI06_39hr_135.fot'
-         RTS_start_date = '2018:001:00:00:00.00'
-    
-         # Create an instance of LTCTI_RTS
-         RTS = LTCTI_RTS.LTCTI_RTS('<directory containing RTS files and FOT request file>')
-    
-         # Parse the FOT request file to extract the relevant parameters
-         RTS.parse_FOT_request(fot_request)
-    
-         # Convert the specified RTS file into a time stamped numpy array
-         processed_commands = RTS.processRTS(RTS.RTS_name, 
-                                             RTS.SCS_NUM, 
-                                             RTS.NUM_HOURS, 
-                                             RTS_start_date)
-
-         # Convert the numpy array into a list of dicts in SKA.Parse format
-         ska_cmds = RTS.convert_ACIS_RTS_to_ska_parse(processed_commands)
-    
-
-
-    From there your application can use the SKA tool xxxxxxxx to translate the
-    dicts into FOT backstop file format if that is required.
-
-
-    inputs:  1) FOT Request file
-                  Example file contents:
-                   SCS_CATEGORY, OBSERVING
-
-                   RTSLOAD,1_CTI06,SCS_NUM=135,NUM_HOURS=001:15:00:00
-
-             2)  Full path to the appropriate FOT CTI RTS file:
+    inputs:  1) RTS file location
+                  - Directory in which your RTS files canbe found.
                    At present there are only three:
+                   
+                   1_4_CTI.RTS
+                   1_5_CTI.RTS
                    1_CTI06.RTS
-                   1_CTI05.RTS
-                   1_CTI04.RTS
                    
               3) Start Time for the execution of the RTS in Chandra DOY format
 
@@ -256,6 +229,12 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
         This method opens the specified RTS, reads each line and creates an
         array which contains the values in the line plus time stamps the line.
         
+
+        inputs:      RTS_load : Name of the LTCTI RTS file (e.g. 1_4_CTI)
+                     SCS_NUM  : The SCS number this RTS file was run in (e.g. 135)
+                    NUM_HOURS : a string in the FOT request format:  ddd:hh:mm:ss
+               RTS_start_date : Start of the LTCTI in DOY format
+
         ACIS LTCTI RTS files contain comma separated lines, and each line entry
          can have 2,3 or 4 columns.
         
@@ -307,8 +286,10 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
         # Create an empty array with the RTS_dtype
         RTS_cmds = np.array( [], dtype = self.RTS_dtype)
               
+        # Form the full path to the appropriate RTS file
+        rts_file_path = os.path.join(self.RTS_file_loc, self.RTS_name+'.RTS')
         # Open the specified RTS file for this Long Term CTI run
-        rts_load = open(self.RTS_file_loc+self.RTS_name+'.RTS', 'r')
+        rts_load = open(rts_file_path, 'r')
         
         # Process each command in the RTS
         # You want to fill out the RTS_dtype to the degree that you can

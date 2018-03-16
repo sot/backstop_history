@@ -34,6 +34,9 @@ class BackstopHistory:
         self.load_type_list = []
         self.continuity_file_name = cont_file_name
         self.NLET_tracking_file_path = NLET_tracking_file_path
+        # Full path to RTS files
+        self.RTS = LTCTI_RTS.LTCTI_RTS(os.path.dirname(__file__))
+
 
         # Create a Dtype for the Continuity Info array
         self.cont_dtype = [('base_load', '|S20'), ('cont_file', '|S80'), ('load_type', '|S10'), ('load_tofc', '|S25')]
@@ -174,9 +177,6 @@ class BackstopHistory:
                                 'time': -1.0,
                                 'tlmsid': 'AONSMSAF',
                                 'vcdu': 0000000}
-
-        # Create an instance of LTCTI_RTS
-        self.RTS = LTCTI_RTS.LTCTI_RTS('/home/gregg/MODELS/ACIS_HISTORY_ASSEMBLY/RTS/')
 
 
 #-------------------------------------------------------------------------------
