@@ -4,7 +4,7 @@ import re
 
 # Import the class that contains individual command data for all
 # the commands which are relevant to LTCTI runs
-import LTCTI_ACIS_commands
+from backstop_history import LTCTI_ACIS_commands
 
 from Chandra.Time import DateTime
 
