@@ -167,11 +167,11 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
             # Split on commas
             split_line = eachline.split(',')
             # If RTSLOAD appears in the line
-            if (filter(rtsload_match.match, split_line)):
+            if list(filter(rtsload_match.match, split_line)):
                 self.load_type = 'RTSLOAD'
-                self.RTS_name = filter(name_match.match, split_line)[0]
-                self.SCS_NUM = filter(scs_match.match, split_line)[0].split('=')[-1]
-                self.NUM_HOURS = filter(num_hours_match.match, split_line)[0].split('=')[-1]
+                self.RTS_name = list(filter(name_match.match, split_line))[0]
+                self.SCS_NUM = list(filter(scs_match.match, split_line))[0].split('=')[-1]
+                self.NUM_HOURS = list(filter(num_hours_match.match, split_line))[0].split('=')[-1]
         # Done with the FOT request file - close it
         fot_req.close()
 
@@ -304,10 +304,10 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                 
                 # /CMD or ACIS STATEMENT
                 # Find out what the statement value is (/CMD or ACIS)
-                if filter(cmd_statement_match.match, split_line):
+                if list(filter(cmd_statement_match.match, split_line)):
                     # It's a /CMD line so set the statement to /CMD
                     statement = '/CMD'
-                elif filter(acis_statement_match.match, split_line):
+                elif list(filter(acis_statement_match.match, split_line)):
                     # It's a /CMD line so set the statement to /CMD
                     statement = 'ACIS'
                 else:
@@ -323,10 +323,10 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                     mnemonic = split_line[statement_pos+1]
 
                 # Grab all list items that have an equal sign
-                equal_items_list = filter(equal_match.findall, split_line)
+                equal_items_list = list(filter(equal_match.findall, split_line))
         
                 # Is there a DELTA= in any list item?  
-                d_match = filter(delta_match.findall, equal_items_list)
+                d_match = list(filter(delta_match.findall, equal_items_list))
         
                 # If so, extract the time string in the DELTA entry, convert
                 # it to seconds, and add those number of seconts to the present_time
