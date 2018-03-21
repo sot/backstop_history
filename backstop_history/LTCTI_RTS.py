@@ -161,13 +161,13 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
 
         # Open the request file for reading
         fot_req = open(self.RTS_file_loc+fot_request_file, 'r')
-        
+
         # Read eachline and toss until you get to the line that begins with "RTSLOAD"
         for eachline in fot_req:
             # Split on commas
             split_line = eachline.split(',')
             # If RTSLOAD appears in the line
-            if list(filter(rtsload_match.match, split_line)):
+            if any(filter(rtsload_match.match, split_line)):
                 self.load_type = 'RTSLOAD'
                 self.RTS_name = list(filter(name_match.match, split_line))[0]
                 self.SCS_NUM = list(filter(scs_match.match, split_line))[0].split('=')[-1]
@@ -304,10 +304,10 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                 
                 # /CMD or ACIS STATEMENT
                 # Find out what the statement value is (/CMD or ACIS)
-                if list(filter(cmd_statement_match.match, split_line)):
+                if any(filter(cmd_statement_match.match, split_line)):
                     # It's a /CMD line so set the statement to /CMD
                     statement = '/CMD'
-                elif list(filter(acis_statement_match.match, split_line)):
+                elif any(filter(acis_statement_match.match, split_line)):
                     # It's a /CMD line so set the statement to /CMD
                     statement = 'ACIS'
                 else:
