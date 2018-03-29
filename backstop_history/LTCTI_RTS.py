@@ -2,18 +2,14 @@ import numpy as np
 import os
 import re
 
-# Always include this to be sure of getting the new style classes
-
-__metaclass__ = type
-
 # Import the class that contains individual command data for all
 # the commands which are relevant to LTCTI runs
-import LTCTI_ACIS_commands
+from backstop_history import LTCTI_ACIS_commands
 
 from Chandra.Time import DateTime
 
 
-class LTCTI_RTS:
+class LTCTI_RTS(object):
     """
     This class allows the user to convert a FOT, ACIS, LTCTI, RTS file, along with
     information found in a FOT Request, and generate a list of dicts where each line in the RTS file is
@@ -165,17 +161,17 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
 
         # Open the request file for reading
         fot_req = open(self.RTS_file_loc+fot_request_file, 'r')
-        
+
         # Read eachline and toss until you get to the line that begins with "RTSLOAD"
         for eachline in fot_req:
             # Split on commas
             split_line = eachline.split(',')
             # If RTSLOAD appears in the line
-            if (filter(rtsload_match.match, split_line)):
+            if any(filter(rtsload_match.match, split_line)):
                 self.load_type = 'RTSLOAD'
-                self.RTS_name = filter(name_match.match, split_line)[0]
-                self.SCS_NUM = filter(scs_match.match, split_line)[0].split('=')[-1]
-                self.NUM_HOURS = filter(num_hours_match.match, split_line)[0].split('=')[-1]
+                self.RTS_name = list(filter(name_match.match, split_line))[0]
+                self.SCS_NUM = list(filter(scs_match.match, split_line))[0].split('=')[-1]
+                self.NUM_HOURS = list(filter(num_hours_match.match, split_line))[0].split('=')[-1]
         # Done with the FOT request file - close it
         fot_req.close()
 
@@ -217,7 +213,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
         duration_secs = sum(float(n) * m for n, m in zip(time_string.split(':'), (86400.0, 3600.0, 60.0, 1)))
     
         # return the converted duration
-        return(duration_secs)
+        return duration_secs
     
     #-------------------------------------------------------------------------------
     #   
@@ -308,10 +304,10 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                 
                 # /CMD or ACIS STATEMENT
                 # Find out what the statement value is (/CMD or ACIS)
-                if(filter(cmd_statement_match.match, split_line)):
+                if any(filter(cmd_statement_match.match, split_line)):
                     # It's a /CMD line so set the statement to /CMD
                     statement = '/CMD'
-                elif (filter(acis_statement_match.match, split_line)):
+                elif any(filter(acis_statement_match.match, split_line)):
                     # It's a /CMD line so set the statement to /CMD
                     statement = 'ACIS'
                 else:
@@ -319,7 +315,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                     statement = None
 
                 # MNEMONIC
-                if statement != None:
+                if statement is not None:
                     # Find the position in the list of the statment
                     # It's usually the first line but don't make assumptions
                     statement_pos = split_line.index(statement)
@@ -327,10 +323,10 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                     mnemonic = split_line[statement_pos+1]
 
                 # Grab all list items that have an equal sign
-                equal_items_list = filter(equal_match.findall, split_line)
+                equal_items_list = list(filter(equal_match.findall, split_line))
         
                 # Is there a DELTA= in any list item?  
-                d_match = filter(delta_match.findall, equal_items_list)
+                d_match = list(filter(delta_match.findall, equal_items_list))
         
                 # If so, extract the time string in the DELTA entry, convert
                 # it to seconds, and add those number of seconts to the present_time
@@ -388,7 +384,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
         rts_load.close()
         
         # Return the RTS_cmds array
-        return(RTS_cmds)
+        return RTS_cmds
     
     
     
@@ -473,7 +469,7 @@ array([ ('2018:001:00:00:00.00', 631152069.184, '/CMD', 'OORMPEN', 'None', 'None
             step +=1
 
         # Return the updated dictionary
-        return(RTS_ska_bs)
+        return RTS_ska_bs
     
     
     #-------------------------------------------------------------------------------
@@ -486,4 +482,4 @@ array([ ('2018:001:00:00:00.00', 631152069.184, '/CMD', 'OORMPEN', 'None', 'None
         This is the method you overload if you want to convert every command
         in the RTS_cmds array into SKA.Parse format
         """
-        return(None)
+        pass

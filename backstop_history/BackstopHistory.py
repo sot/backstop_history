@@ -9,24 +9,81 @@
 #
 #
 ################################################################################
+from __future__ import print_function
 import copy
 import glob
-import json
 import numpy as np
 import os
-import pickle
-import subprocess
-import sys
-import time
+import logging
 
-import LTCTI_RTS
+from backstop_history import LTCTI_RTS
 
 import Ska.ParseCM
 from Chandra.Time import DateTime
 
-class BackstopHistory:
 
-    def __init__(self, cont_file_name = 'ACIS-Continuity.txt', NLET_tracking_file_path = '/data/acis/LoadReviews/NonLoadTrackedEvents.txt'):
+# -------------------------------------------------------------------------------
+#
+#  globfile
+#
+# -------------------------------------------------------------------------------
+def globfile(pathglob):
+    """Return the one file name matching ``pathglob``.  Zero or multiple
+    matches raises an IOError exception."""
+
+    files = glob.glob(pathglob)
+    if len(files) == 0:
+        raise IOError('No files matching %s' % pathglob)
+    elif len(files) > 1:
+        raise IOError('Multiple files matching %s' % pathglob)
+    else:
+        return files[0]
+
+def config_logger(verbose):
+    """
+    Set up console logger.
+
+    Parameters
+    ----------
+    verbose : integer
+        Indicate how verbose we want the logger to be.
+        (0=quiet, 1=normal, 2=debug)
+    """
+
+    # Disable auto-configuration of root logger by adding a null handler.
+    # This prevents other modules (e.g. Chandra.cmd_states) from generating
+    # a streamhandler by just calling logging.info(..).
+    class NullHandler(logging.Handler):
+        def emit(self, record):
+            pass
+    rootlogger = logging.getLogger()
+    rootlogger.addHandler(NullHandler())
+    logger = logging.getLogger("backstop_history")
+    logger.setLevel(logging.DEBUG)
+
+    # Set numerical values for the different log levels
+    loglevel = {0: logging.CRITICAL,
+                1: logging.INFO,
+                2: logging.DEBUG}.get(verbose, logging.INFO)
+
+    formatter = logging.Formatter('%(message)s')
+
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    console.setLevel(loglevel)
+    logger.addHandler(console)
+    
+    return logger
+
+
+class BackstopHistory(object):
+
+    def __init__(self, cont_file_name='ACIS-Continuity.txt', 
+                 NLET_tracking_file_path='/data/acis/LoadReviews/NonLoadTrackedEvents.txt',
+                 logger=None, verbose=1):
+        if logger is None:
+            logger = config_logger(verbose)
+        self.logger = logger
         self.master_list = []
         self.rev_to_take = []
         self.load_list = []
@@ -39,7 +96,10 @@ class BackstopHistory:
 
 
         # Create a Dtype for the Continuity Info array
-        self.cont_dtype = [('base_load', '|S20'), ('cont_file', '|S80'), ('load_type', '|S10'), ('load_tofc', '|S25')]
+        self.cont_dtype = [('base_load', '|S20'),
+                           ('cont_file', '|S80'), 
+                           ('load_type', '|S10'), 
+                           ('load_tofc', '|S25')]
 
         # Create the SCS-107 command set that's relevant for ACIS
         # Now the SCS-107 on board is an RTS so the times and
@@ -177,24 +237,6 @@ class BackstopHistory:
                                 'time': -1.0,
                                 'tlmsid': 'AONSMSAF',
                                 'vcdu': 0000000}
-
-
-#-------------------------------------------------------------------------------
-#
-#  globfile
-#
-#-------------------------------------------------------------------------------
-    def globfile(self, pathglob):
-        """Return the one file name matching ``pathglob``.  Zero or multiple
-        matches raises an IOError exception."""
-    
-        files = glob.glob(pathglob)
-        if len(files) == 0:
-            raise IOError('No files matching %s' % pathglob)
-        elif len(files) > 1:
-            raise IOError('Multiple files matching %s' % pathglob)
-        else:
-            return files[0]
     
 
 #-------------------------------------------------------------------------------
@@ -219,15 +261,15 @@ class BackstopHistory:
     
         After being used once, the lists should be cleared by calling
         self.clear_backstop_lists if you are running two or more histories 
-emacs         ine one program
+        in one program
         """
-        if load_week != None:
+        if load_week is not None:
             self.load_list.insert(0, load_week)
 
-        if backstop_name != None:
+        if backstop_name is not None:
             self.backstop_list.insert(0, backstop_name)
     
-        if load_type != None:
+        if load_type is not None:
             self.load_type_list.insert(0, load_type)
 
 #-------------------------------------------------------------------------------
@@ -235,7 +277,7 @@ emacs         ine one program
 # method clear_backstop_lists - Clear out the load and backstop file history lists
 #
 #-------------------------------------------------------------------------------
-    def clear_backstop_lists(self,):
+    def clear_backstop_lists(self):
         """
         Clearing out  self.load_list and self.backstop_list
         """
@@ -249,13 +291,13 @@ emacs         ine one program
 #                               name  history lists
 #
 #-------------------------------------------------------------------------------
-    def print_backstop_lists(self,):
+    def print_backstop_lists(self):
         """
-        Print out  self.load_list and self.backstop_list
+        Print out self.load_list and self.backstop_list
         """
-        print self.load_list[:]
-        print self.backstop_list[:]
-        print self.load_type_list[:]
+        print(self.load_list)
+        print(self.backstop_list)
+        print(self.load_type_list)
     
 #-------------------------------------------------------------------------------
 #
@@ -290,11 +332,12 @@ emacs         ine one program
                      
         """
         # Does a Continuity file exist for the input path
-        if os.path.isfile(oflsdir+'/'+self.continuity_file_name):
+        ofls_cont_fn = os.path.join(oflsdir, self.continuity_file_name)
+        if os.path.exists(ofls_cont_fn):
     
             # Open the Continuity text file in the ofls directory and read the name of the 
             # continuity load date (e.g. FEB2017).  then close the file
-            ofls_cont_file = open(oflsdir+'/'+self.continuity_file_name, 'r')
+            ofls_cont_file = open(ofls_cont_fn, 'r')
             # Read the first line...the pat to the continuity load
             continuity_load_path = ofls_cont_file.readline()[:-1]
     
@@ -318,9 +361,9 @@ emacs         ine one program
             ofls_cont_file.close()
     
             # Return the Continuity load path to the caller.
-            return(continuity_load_path, review_load_type, interrupt_time)
+            return continuity_load_path, review_load_type, interrupt_time
         else:
-            return(None,None,None)
+            return None, None, None
 
 #-------------------------------------------------------------------------------
 #
@@ -343,19 +386,19 @@ emacs         ine one program
                                 -  list of dictionary items
     
         """
-        backstop_file_path = self.globfile(os.path.join(oflsdir, 'CR*.backstop'))
-        print'    GET_BS_CMDS - Using backstop file %s' % backstop_file_path
+        backstop_file_path = globfile(os.path.join(oflsdir, 'CR*.backstop'))
+        self.logger.info("GET_BS_CMDS - Using backstop file %s" % backstop_file_path)
     
         # Extract the name of the backstop file from the path
-        bs_name = backstop_file_path.split('/')[-1]
+        bs_name = os.path.split(backstop_file_path)[-1]
     
         # Read the commands located in that backstop file
         bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        print '    GET_BS_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[
-    -1]['date'])
+        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s" % (len(bs_cmds), 
+                                                                                         bs_cmds[0]['date'], 
+                                                                                         bs_cmds[-1]['date']))
     
-        return(bs_cmds, bs_name)
-    
+        return bs_cmds, bs_name 
     
 #-------------------------------------------------------------------------------
 #
@@ -379,19 +422,19 @@ emacs         ine one program
                                 -  list of dictionary items
     
         """
-        backstop_file_path = self.globfile(os.path.join(oflsdir+'/vehicle/', 'VR*.backstop'))
-        print'    GET_BS_CMDS - Using backstop file %s' % backstop_file_path
+        backstop_file_path = globfile(os.path.join(oflsdir, "vehicle", 'VR*.backstop'))
+        self.logger.info('GET_BS_CMDS - Using backstop file %s' % backstop_file_path)
     
         # Extract the name of the backstop file from the path
-        bs_name = backstop_file_path.split('/')[-1]
+        bs_name = os.path.split(backstop_file_path)[-1]
     
         # Read the commands located in that backstop file
         bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        print '    GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[
-    -1]['date'])
+        self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), 
+                                                                                                   bs_cmds[0]['date'], 
+                                                                                                   bs_cmds[-1]['date']))
     
-        return(bs_cmds, bs_name)
-    
+        return bs_cmds, bs_name 
 
 #-------------------------------------------------------------------------------
 #
@@ -435,10 +478,10 @@ emacs         ine one program
         # string located in the key: "date". This will interleave all the 
         # commands correctly.
 #        self.master_list = sorted (newlist, key=lambda k: k['date'])
-        self.master_list = sorted (newlist, key=lambda k: k['time'])
+        self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the sorted command list to the caller
-        return(self.master_list)
+        return self.master_list
     
     
     
@@ -484,9 +527,9 @@ emacs         ine one program
         # to the master list
         newlist = self.master_list + rev_bs_cmds
 
-        self.master_list = sorted (newlist, key=lambda k: k['time'])
+        self.master_list = sorted(newlist, key=lambda k: k['time'])
 
-        return(self.master_list)
+        return self.master_list
     
     
     
@@ -583,16 +626,15 @@ emacs         ine one program
         #           BSH - stuck at some pitch - ALL Stop
         #     OCC Pitch Maneuver - Move to a new pitch.
         #
-        # Next we determine if a MAN  (maneuver) entry exists in the NLET file 
+        # Next we determine if a MAN (maneuver) entry exists in the NLET file 
         # between the shutdown_date and the time of the first command in "rev_bs_cmds"
         # These could be both NSM and OCC-commanded pitch changes.
         MAN_date, pitch, roll, q1, q2, q3, q4 = self.FindMANs(shutdown_date, rev_bs_cmds[0]['time'])
 
-        # If a maneruver was found in the NLET file process it and add it's commands
-        while(MAN_date != None):
+        while MAN_date is not None:
             # If this is a legal maneuver, process it
             if pitch != 0.0:
-                print "\n     MANEUVER FOUND!", MAN_date
+                self.logger.info("MANEUVER FOUND! %s" % MAN_date)
                 # Now form and add the command (in SKA.Parse format - i.e. dict) which
                 # specifies the MP_TARGQUAT 
                 new_maneuver = copy.deepcopy(self.MAN_bs_cmds)
@@ -604,16 +646,16 @@ emacs         ine one program
                 new_maneuver['params']['Q3'] = float(q3)
                 new_maneuver['params']['Q4'] = float(q4)
                 new_maneuver['time'] = DateTime(MAN_date).secs
-                paramstr = 'TLMSID= AOUPTARQ, CMDS= 8, Q1= '+str(q1)+', Q2= '+str(q2)+', Q3= '+str(q3)+', Q4= '+str(q4)+'SCS= 1, STEP= 1'
+                paramstr = 'TLMSID= AOUPTARQ, CMDS= 8, Q1= %s, Q2= %s, Q3= %s, Q4= %s, SCS= 1, STEP= 1' % (q1, q2, q3, q4)
                 new_maneuver['paramstr'] = paramstr
     
                 # Tack the maneuver to the Master List
-                self.master_list += [new_maneuver]
+                self.master_list.append(new_maneuver)
       
             else: # It's a bogus maneuver entry - the user didn't specify good Q's
-                print "Bogus Maneuver Entry! Quaternions badly specified: \n"
-                print "Bad Q's: ", q1, q2, q3, q4
-                print "...therefore bogus pitch and roll: ", pitch, roll
+                self.logger.warning("Bogus Maneuver Entry! Quaternions badly specified: \n"
+                                    "Bad Q's: %g, %g, %g, %g " % (q1, q2, q3, q4) +
+                                    "...therefore bogus pitch and roll: %g, %g" % (pitch, roll))
 
             # Create the AOMANUVR command and add it to the Master List.
             # This command actually kicks the maneuver off.
@@ -628,7 +670,7 @@ emacs         ine one program
             # Tacking the command to the Master list doesn't really do much if there
             # is no AOUPTARQ command. But it allows you to search for subsequent maneuver 
             # commands
-            self.master_list += [aoman]
+            self.master_list.append(aoman)
 
             # See if there is another one between the one you found and the beginning of the
             # assembled load
@@ -639,7 +681,7 @@ emacs         ine one program
         RTS_start_date, self.RTS.RTS_name, self.RTS.CAP_num,  self.RTS.NUM_HOURS = self.FindLTCTIrun(shutdown_date , rev_bs_cmds[0]['time'])
 
         # If an LTCTI run was found, add it to the master list
-        if RTS_start_date != None:
+        if RTS_start_date is not None:
             # Process the specified RTS file and get a time-stamped numpy array of the data
             cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
     
@@ -662,9 +704,9 @@ emacs         ine one program
         newlist =  self.master_list + rev_bs_cmds
 
         # sort them
-        self.master_list = sorted (newlist, key=lambda k: k['time'])
+        self.master_list = sorted(newlist, key=lambda k: k['time'])
 
-        return(self.master_list)
+        return self.master_list
     
     
 #-------------------------------------------------------------------------------
@@ -769,13 +811,14 @@ emacs         ine one program
 
 
         # STEP 3
-        print "\n    STEP - 3 Check for a LTCTI between: ",self.master_list[-1]['date'] , rev_bs_cmds[0]['date']
+        self.logger.info("STEP - 3 Check for a LTCTI between: %s - %s" % (self.master_list[-1]['date'], 
+                                                                          rev_bs_cmds[0]['date']))
         # Next we determine if there is a Long Term CTI run that was done between the
         # last time in the master list and the time of the first command in "rev_bs_cmds"
         RTS_start_date, self.RTS.RTS_name, self.RTS.CAP_num,  self.RTS.NUM_HOURS = self.FindLTCTIrun(shutdown_date , rev_bs_cmds[0]['time'])
 
         # If an LTCTI run was found, add it to the master list
-        if RTS_start_date != None:
+        if RTS_start_date is not None:
             # Process the specified RTS file and get a time-stamped numpy array of the data
             cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
     
@@ -790,7 +833,7 @@ emacs         ine one program
             # Concatenate the LTCTI run to the master list
             self.master_list += trimmed_LTCTI_bs_cmds
             # Sort the master list
-            self.master_list = sorted (self.master_list, key=lambda k: k['time'])
+            self.master_list = sorted(self.master_list, key=lambda k: k['time'])
     
         # STEP 4
         vo_bs_cmds_trimmed = self.Trim_bs_cmds_Before_Date(vo_cut_date, vo_bs_cmds)
@@ -812,11 +855,10 @@ emacs         ine one program
         newlist =  self.master_list + rev_bs_cmds
  
         # sort them
-        self.master_list = sorted (newlist, key=lambda k: k['time'])
+        self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the expanded Master List to the caller
-        return(self.master_list)
-    
+        return self.master_list 
 
 
     #-------------------------------------------------------------------------------
@@ -839,7 +881,9 @@ emacs         ine one program
         combofile = open(outfile_path, "w")
         for eachcmd in cmd_list:
             if eachcmd['cmd'] != 'GET_PITCH':
-                cmd_line = eachcmd['date']+" | "+str(eachcmd['vcdu']).zfill(7)+" | "+eachcmd['cmd']+" | "+eachcmd['paramstr']+"\n"
+                cmd_line = eachcmd['date'] + " | %s | %s | %s\n" % (eachcmd['vcdu'].zfill(7),
+                                                                    eachcmd['cmd'],
+                                                                    eachcmd['paramstr'])
                 combofile.write(cmd_line)
 
         combofile.close()
@@ -882,7 +926,7 @@ emacs         ine one program
         trimmed_list = [cmd for cmd in cmd_list if cmd['time'] < trim_time]
        
         # Return the trimmed list
-        return(trimmed_list)
+        return trimmed_list
 
 
     
@@ -923,7 +967,7 @@ emacs         ine one program
         trimmed_list = [cmd for cmd in cmd_list if cmd['time'] >= trim_time]
        
         # Return the trimmed list
-        return(trimmed_list)
+        return trimmed_list
 
 
     #-------------------------------------------------------------------------------
@@ -977,18 +1021,13 @@ emacs         ine one program
                                  Therefore you cannont back Chain further beyond
                                  The January 30th load.
    
-        """        
+        """
         # Create an empty load chain array
-        load_chain = np.array( [], dtype = self.cont_dtype)
+        load_chain = np.array([], dtype=self.cont_dtype)
 
         # Extract the base load week from the full path
-        # eliminate a trailing '/' if it's there. 
         # This is entered in the first column of the resultant array
-        if base_load_dir[-1] == '/':
-            base_load_week = base_load_dir.split('/')[-3]
-        else:
-            base_load_week = base_load_dir.split('/')[-2]
-        
+        base_load_week = os.path.split(base_load_dir)[-2]
         # Extract the continuity info from the Load week. 
         # REMEMBER: this information is with regard to the
         # input load. It's the Continuity file that leads to the
@@ -1012,7 +1051,7 @@ emacs         ine one program
         #
         # If you have not exceeded the requested chain length and
         # there is continuity info, tack it onto the load chain array
-        while ( len(load_chain)  < chain_length) and (continuity_info[0] != None):
+        while len(load_chain) < chain_length and continuity_info[0] is not None:
     
             continuity_load_path = continuity_info[0]
     
@@ -1035,7 +1074,7 @@ emacs         ine one program
              
 
         # Return the array of back chains
-        return(load_chain)
+        return load_chain
 
     #-------------------------------------------------------------------------------
     #
@@ -1116,7 +1155,7 @@ emacs         ine one program
     
         # Return items from any found netline; or Nones if 
         # no LTCTI line matched the requirements.
-        return(ltcti_date, ltcti_rts_file, ltcti_cap_number, ltcti_duration )
+        return ltcti_date, ltcti_rts_file, ltcti_cap_number, ltcti_duration
 
 
 
@@ -1206,7 +1245,7 @@ emacs         ine one program
     
         # Return items from any found netline; or Nones if 
         # no LTCTI line matched the requirements.
-        return(MAN_date, MAN_pitch, MAN_roll, MAN_q1, MAN_q2, MAN_q3, MAN_q4 )
+        return MAN_date, MAN_pitch, MAN_roll, MAN_q1, MAN_q2, MAN_q3, MAN_q4
 
 
     #-------------------------------------------------------------------------------
@@ -1216,7 +1255,8 @@ emacs         ine one program
     #                              the full path to the OFLS directory is written out.
     #
     #-------------------------------------------------------------------------------
-    def write_back_chain_to_pickle(self, format = 'ACIS', file_path = '/home/gregg/DPAMODEL/dpa_check/Chain.p', chain = None):
+    def write_back_chain_to_pickle(self, format='ACIS', 
+                                   file_path='/home/gregg/DPAMODEL/dpa_check/Chain.p', chain=None):
         """
         Given a backchain, and a file path, write the contents of the backchain to a pickle file.
         If the "format" argumen is "ACIS' then the full path to the ACIS ofls directory is
@@ -1268,7 +1308,8 @@ emacs         ine one program
     #                           the full path to the OFLS directory is written out.
     #
     #-------------------------------------------------------------------------------
-    def write_back_chain_to_txt(self, format = 'ACIS', file_path = '/home/gregg/DPAMODEL/dpa_check/Chain.txt', chain = None):
+    def write_back_chain_to_txt(self, format='ACIS', 
+                                file_path='/home/gregg/DPAMODEL/dpa_check/Chain.txt', chain=None):
         """
         Given a backchain, and a file path, write the contents of the backchain to a text file.
         If the "format" argumen is "ACIS' then the full path to the ACIS ofls directory is
@@ -1318,7 +1359,7 @@ emacs         ine one program
     #                            variable.
     #
     #-------------------------------------------------------------------------------
-    def read_back_chain_from_txt(self,  file_path = '/home/gregg/DPAMODEL/dpa_check/Chain.txt'):
+    def read_back_chain_from_txt(self, file_path='/home/gregg/DPAMODEL/dpa_check/Chain.txt'):
         """
         Given a path to a txt file written by write_back_chain_to_txt, 
         read the contents of the text file and store it in an array
@@ -1327,4 +1368,4 @@ emacs         ine one program
         # Read the file
         chain = np.loadtxt(file_path, self.cont_dtype)
         # Return the array
-        return(chain)
+        return chain
