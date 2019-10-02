@@ -15,6 +15,7 @@ import glob
 import numpy as np
 import os
 import logging
+from importlib import reload
 
 from backstop_history import LTCTI_RTS
 
@@ -84,22 +85,46 @@ class BackstopHistory(object):
         if logger is None:
             logger = config_logger(verbose)
         self.logger = logger
+
+        # Full path to a test output file used for debugging
+        self.debug_outfile_path = '/home/gregg/Desktop/Debug_cmds.dat'
+
+        # Full list of backstop commands whihc have been assembled
         self.master_list = []
+
         self.rev_to_take = []
+
+        # The time of the Review Load first command in DOY and seconds format
+        self.Date_OFC = None
+        self.Time_OFC = None
+
+        # The time of the safemode/shutdown in DOY and seconds format
+        self.shutdown_date = None
+        self.shutdown_time = None
+
         self.load_list = []
         self.backstop_list = []
         self.load_type_list = []
         self.continuity_file_name = cont_file_name
         self.NLET_tracking_file_path = NLET_tracking_file_path
+
+        # List of WSPOW commands 
+        self.power_command_list = [ 'WSPOW00000', 'WSPOW0002A', 'WSVIDALLDN']
+
+
         # Full path to RTS files
         self.RTS = LTCTI_RTS.LTCTI_RTS(os.path.dirname(__file__))
 
+        # List of any events that occurred between a shutdown and
+        # The time of first command of the Return to Science load.
+        #   - Or really between any 2 times but the above is how it's used.
+        self.shutdown_event_list = []
 
         # Create a Dtype for the Continuity Info array
-        self.cont_dtype = [('base_load', '|S20'),
-                           ('cont_file', '|S80'), 
-                           ('load_type', '|S10'), 
-                           ('load_tofc', '|S25')]
+        self.cont_dtype = [('base_load', '|U20'),
+                           ('cont_file', '|U80'), 
+                           ('load_type', '|U10'), 
+                           ('load_tofc', '|U25')]
 
         # Create the SCS-107 command set that's relevant for ACIS
         # Now the SCS-107 on board is an RTS so the times and
@@ -170,6 +195,64 @@ class BackstopHistory(object):
                                 'tlmsid': 'WSPOW00000',
                                 'vcdu': 0000000} ]
 
+#                                'vcdu': 0000000},
+                               
+
+        # --------------------------------------------------------------
+        #
+        #  Individual Power Commands - Commands issued by themselves
+        #
+        # --------------------------------------------------------------
+        # --------------------- WSPOW00000 -----------------------------
+        self.WSPOW00000_bs_cmd = {'cmd': 'ACISPKT',
+                                'date': '1900:001',
+                                'msid': None,
+                                'params': {'CMDS': 5,
+                                           'PACKET(40)': 'D8000070007030500200000000000010000',
+                                           'SCS': 135,
+                                           'STEP': 1,
+                                           'TLMSID': 'WSPOW00000',
+                                           'WORDS': 7},
+                                'paramstr': 'TLMSID= WSPOW00000, CMDS= 5, WORDS= 7, PACKET(40)= D8000070007030500200000000000010000     , SCS= 135, STEP= 1',
+                                'scs': 135,
+                                'step': 1,
+                                'time': -1.0,
+                                'tlmsid': 'WSPOW00000',
+                                'vcdu': 0000000}
+
+        # --------------------- WSPOW0002A -----------------------------
+        self.WSPOW0002A_bs_cmd = {'cmd': 'ACISPKT',
+                                'date': '1900:001',
+                                'msid': None,
+                                'params': {'CMDS': 5,
+                                           'PACKET(40)': 'D80000700073E800020000000000001002A',
+                                           'SCS': 135,
+                                           'STEP': 1,
+                                           'TLMSID': 'WSPOW0002A',
+                                           'WORDS': 7},
+                                'paramstr': 'TLMSID= WSPOW0002A, CMDS= 5, WORDS= 7, PACKET(40)= D80000700073E800020000000000001002A     , SCS= 135, STEP= 1',
+                                'scs': 135,
+                                'step': 1,
+                                'time': -1.0,
+                                'tlmsid': 'WSPOW0002A',
+                                'vcdu': 0000000}
+
+        # --------------------- WSVIDALLDN -----------------------------
+        self.WSVIDALLDN_bs_cmd = {'cmd': 'ACISPKT',
+                                'date': '1900:001',
+                                'msid': None,
+                                'params': {'CMDS': 4,
+                                           'PACKET(40)': 'D800005000506050020000000000',
+                                           'SCS': 135,
+                                           'STEP': 1,
+                                           'TLMSID': 'WSVIDALLDN',
+                                           'WORDS': 5},
+                                'paramstr': 'TLMSID= WSVIDALLDN, CMDS= 4, WORDS= 5, PACKET(40)= D800005000506050020000000000     , SCS= 135, STEP= 1',
+                                'scs': 135,
+                                'step': 1,
+                                'time': -1.0,
+                                'tlmsid': 'WSVIDALLDN',
+                                'vcdu': 0000000}
 
         # Create the MP_TARGQUAT command that specifies a maneuver's final
         # position.
@@ -381,22 +464,24 @@ class BackstopHistory(object):
 
         INPUT: oflsdir = Path to the OFLS directory (string)
     
-        OUTPUT   : bs_cmds = A list of the ommands within the backstop file 
+        OUTPUT   : bs_cmds = A list of the commands within the backstop file 
                              in ofls directory that represents the  built load.
                                 -  list of dictionary items
     
+                   bs_name - Name of the Backstop file containing the commands
+                              - e.g. CR249_2305.backstop
         """
         backstop_file_path = globfile(os.path.join(oflsdir, 'CR*.backstop'))
-        self.logger.info("GET_BS_CMDS - Using backstop file %s" % backstop_file_path)
-    
+#        self.logger.info("GET_BS_CMDS - Using backstop file %s" % backstop_file_path)
+
         # Extract the name of the backstop file from the path
         bs_name = os.path.split(backstop_file_path)[-1]
     
         # Read the commands located in that backstop file
         bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s" % (len(bs_cmds), 
-                                                                                         bs_cmds[0]['date'], 
-                                                                                         bs_cmds[-1]['date']))
+#        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s" % (len(bs_cmds), 
+#                                                                                         bs_cmds[0]['date'], 
+#                                                                                         bs_cmds[-1]['date']))
     
         return bs_cmds, bs_name 
     
@@ -435,6 +520,7 @@ class BackstopHistory(object):
                                                                                                    bs_cmds[-1]['date']))
     
         return bs_cmds, bs_name 
+
 
 #-------------------------------------------------------------------------------
 #
@@ -531,8 +617,350 @@ class BackstopHistory(object):
 
         return self.master_list
     
+
+
+#-------------------------------------------------------------------------------
+#
+# Collect_Shutodwn_Events - Find all the events that occur during a shutdown
+#                           which take place between the shutdown time and
+#                           Time of First Command of the Resumption of Science
+#                           load
+#
+#-------------------------------------------------------------------------------
+    def Collect_Shutdown_Events(self, shutdown_date, resumption_of_science_date):
+        """
+        At present there are three kinds of events that can occur after a Shutdown
+        which have thermal consequences for ACIS:
+
+            1) Maneuver to a differfent pitch (OCC commanded)
+            2) LTCTI measurement (Long Term CTI)
+            3) FEPs On/ FEPs Off (altering the number of FEPS on for thermal reasons
+
+        This method looks into the NLET tracking file and finds all those events which
+        occurred between the Shutdown time and the Time of First Command of the Return to
+        Science load.
+
+        It will include the actual STOP or SCS-107 entry in the NLET tracking file because
+        the start time is the shutdown date.
+
+        Sometimes the time of shutdown and the time of the next event may be the same time
+        The shutdown time comes from the OCC.
+
+        Recall that the time of subsequent events are entered by ACIS Ops personnel.
+
+        Example: NSM at 2019:248:16:51:18.00 
+
+                 The NSM results in a maneuver to 90 degrees. ACIS Ops enters the
+                 maneuver using the NLET GUI. It's likely that the ACIS Ops person
+                 will enter the same time of the shutdown forthe time of the maneuver.
+
+                 This method will return both of those events plus the LTCTI and MANEUVER
+                 that followed:
+
+                 ['2019:248:16:51:18.000', 'STOP', 'HRC-S,HETG-OUT,LETG-OUT,47912,OORMPDS,CSELFMT2,DISA']
+                 ['2019:248:16:51:18.000', 'MAN', '90.53', '263.10', '-0.3509236000', '0.6512416600', '-0.4674259400', '0.4839935900']
+
+                 ['2019:249:00:22:52', 'LTCTI', '1494', '1_4_CTI', '001:00:00:00']
+
+                 ['2019:249:02:02:00', 'MAN', '158.69', '287.30', '-0.5457521700', '0.2760205900', '-0.1740841000', '0.7717913400']
+
+            So when subsequent methods use this collection one has to remember that the first
+            entry is the shutdown event itself.
+
+        """
+        # Convert the start and stop dates to seconds
+        tstart = DateTime(shutdown_date).secs
+        tstop = DateTime(resumption_of_science_date).secs
+
+        # Initialize the event list to empty
+        event_list = []
+
+        # The Non Load Event Tracking file is an input so that different
+        # users of this module can have different NLET files.
+        nletfile = open(self.NLET_tracking_file_path, 'r')
     
+        # Get the first line
+        nletline = nletfile.readline()
     
+        # Process each line. If it starts with a # then ignore it - it's a 
+        # comment
+        # 
+        # for as long as you have input lines......
+        while nletline:
+            # Check to see if it's a comment line
+            if nletline[0] != '#':
+                # Not a comment; check to see if it's a MAN line
+                # and if so, if the time stamp on the line is between 
+                # tstart and tstop
+                #
+                # Split the line into tokens
+                splitline = nletline.split()
+
+                # If it's not a "GO line; and 
+                #    the time stamp is between tstart and tstop
+                # then capture the information
+                #
+                # NOTE: The reason we have to check to see if it's
+                # a GO line is that there is only one token in that line
+                if (splitline[0] != 'GO') and \
+                   (DateTime(splitline[0]).secs >= tstart) and \
+                   (DateTime(splitline[0]).secs <= tstop):
+    
+                    # We have found an event that affects our
+                    # review load. Capture the values
+                   event_list.append(splitline)
+
+        
+            # Read the next line - or try to
+            nletline = nletfile.readline()
+    
+        # You've read all the lines. Close the file.
+        nletfile.close()
+
+        # Return the list of any events that were found
+        return event_list
+
+
+#-------------------------------------------------------------------------------
+#
+# Add_an_SCS107 - Add the commands for an SCS-107 to the Master list
+#
+#-------------------------------------------------------------------------------
+    def Add_an_SCS107(self, ):
+        """
+        This method adds, to the Master List, ONLY those commands directly 
+        pertinent to an SCS-107.  
+
+        For timing purposes the time of the first scs-107 command is the 
+        safemode shutdown time  plus 1 second. As this is the SCS-107 that
+        occurs due to a safing action, no sorting of the master list is 
+        required.
+
+         Inputs: shutdown_time (float)
+        Outputs: None
+
+        The expected value of the shutdown time should be in Chandra seconds. But just in case
+        someone sends in a DOY string I'll convert it to seconds no matter what.
+        """
+        # Now make a copy of the SCS-107 commands and populate the times. Then
+        # concatenate the 107 commands to the master list
+        scs107_bs_cmds = copy.deepcopy(self.scs107_bs_cmds)
+        
+        # The starting time for the first scs107 command will be 1 second after the input
+        # shutdown time
+        base_time = DateTime(self.shutdown_time).secs + 1
+
+        # populate the date and time slots of each command incrementing the 
+        # times by 4 seconds
+        for eachcmd in scs107_bs_cmds:
+            eachcmd['time'] = base_time
+            eachcmd['date'] = DateTime(base_time).date
+
+            # Increment the base time by one second
+            base_time += 4.0
+        
+        # Now concatenate scs107 commands specific to this event to the master list
+        # which has been trimmed to include only those commands that executed prior to 
+        # the shutdown. No need to sort these at this point
+        self.master_list += scs107_bs_cmds
+
+
+
+#-------------------------------------------------------------------------------
+#
+# Process_Power_Command - Process any NLET entry where the value in the "event"
+#                         column matches items in self.power_command_list
+#
+#-------------------------------------------------------------------------------
+    def Process_Power_Command(self, p_c_event_list):
+        """
+        This method takes as input a list of strings which fully describe a 
+        Power Command that took place.  It processes that power command and adds
+        the appropriate command to the MASTER LIST.  Then it sorts the master list.
+
+        A sample of a power command entry in the NLET file:
+        #-------------------------------------------------------------------------------
+        #       Time        Event         CAP num  
+        #-------------------------------------------------------------------------------
+        2019:260:02:20:00    WSPOW0002A   4567
+
+        ......translates into this list:
+
+        [ '2019:260:02:20:00',    'WSPOW0002A',   '4567']
+
+        ....and that's what the input argument looks like.
+
+        In order to get to this method, the value in the event column needs to be in
+        self.power_command_list.
+
+        For WSPOW commands, only one command will be inseerted into the Master list.
+
+        The CAP number is ignored by this method - it's there for tracking purposes.
+        """
+        # Capture the important values in the power command event
+        p_c_start_date = p_c_event_list[0]
+        # Convert the power command start date to seconds
+        p_c_start_time = DateTime(p_c_start_date).secs
+        # Now grab the actual event
+        p_c_event = p_c_event_list[1]
+
+        # Now insert the appropriate command
+        # Grab the appropriate power command 
+        if p_c_event == 'WSPOW00000':
+            new_power_command = copy.deepcopy(self.WSPOW00000_bs_cmd)
+        elif p_c_event == 'WSPOW0002A':
+            new_power_command = copy.deepcopy(self.WSPOW0002A_bs_cmd)
+        elif p_c_event == 'WSVIDALLDN':
+            new_power_command = copy.deepcopy(self.WSVIDALLDN_bs_cmd)
+
+        # Set the date
+        new_power_command['date'] =  p_c_start_date
+
+        # Append the Power Command to the Master List
+        self.master_list.append(new_power_command)
+
+        # Sort the Master list
+        self.master_list = sorted(self.master_list, key=lambda k: k['time'])
+
+#-------------------------------------------------------------------------------
+#
+# Process_MANEUVER - Process the maneuver described by man_event and add the
+#                    appropriate commands to the MASTER LIST
+#
+#-------------------------------------------------------------------------------
+    def Process_MANEUVER(self, man_event):
+        """
+        This method takes as input a list of strings which fully describe the 
+        maneuver that took place.  It processes that maneuver and adds
+        the appropriate commands to the MASTER LIST.  Then it sorts the master list.
+
+        Inputs: man_list - list extracted from the NLET tracking file which
+                           provides all the details necessary to add the
+                           appropriate commands to self.master_list
+
+        Output:  Updated Master List
+
+        NOTE: It is assumed that an SCS-107 set of commands was added to the
+              master list prior to the call to this routine. Whenever you have
+              a full stop, the code must insert the commands for an SCS-107.
+              Since there can be more than one maneuver after a shutdown and before 
+              the Return To Science (RTS) load, the routine that calls this
+              method must attend to that chore.
+  
+              We do not want an SCS-107 to be added for ALL maneuver events that 
+              happen during a shutdown.
+
+        """
+        # Capture the important values in the event
+        man_start_date = man_event[0]
+        # Convert the maneuver start date to seconds
+        man_start_time = DateTime(man_start_date).secs
+        pitch = man_event[2]
+        nom_roll = man_event[3]
+        # Capture the Quaternions
+        q1 =  man_event[4]
+        q2 =  man_event[5]
+        q3 =  man_event[6]
+        q4 =  man_event[7]
+
+        # If this is a legal maneuver, process it
+        if pitch != 0.0:
+            # Now form and add the command (in SKA.Parse format - i.e. dict) which
+            # specifies the MP_TARGQUAT 
+            new_maneuver = copy.deepcopy(self.MAN_bs_cmds)
+        
+            # Set the dates, times and Q's
+            new_maneuver['date'] = man_start_date
+            new_maneuver['params']['Q1'] = float(q1)
+            new_maneuver['params']['Q2'] = float(q2)
+            new_maneuver['params']['Q3'] = float(q3)
+            new_maneuver['params']['Q4'] = float(q4)
+            new_maneuver['time'] = DateTime(man_start_date).secs
+            paramstr = 'TLMSID= AOUPTARQ, CMDS= 8, Q1= %s, Q2= %s, Q3= %s, Q4= %s, SCS= 1, STEP= 1' % (q1, q2, q3, q4)
+            new_maneuver['paramstr'] = paramstr
+
+            # Tack the maneuver to the Master List
+            self.master_list.append(new_maneuver)
+          
+        else: # It's a bogus maneuver entry - the user didn't specify good Q's
+            self.logger.warning("Bogus Maneuver Entry! Quaternions badly specified: \n"
+                                "Bad Q's: %g, %g, %g, %g " % (q1, q2, q3, q4) +
+                                "...therefore bogus pitch and roll: %g, %g" % (pitch, roll))
+
+        # Create the AOMANUVR command and add it to the Master List.
+        # This command actually kicks the maneuver off.
+        # NOTE: This is done whether or not the maneuver data was good.
+        #       It allows the loop to continue looking for maneuvers
+        aoman = copy.deepcopy(self.AOMANUVR_bs_cmd)
+        aoman_time = DateTime(man_start_date).secs + 1
+        aoman_date = DateTime(aoman_time).date 
+        aoman['date'] = aoman_date
+        aoman['time'] = aoman_time
+        # Tack the maneuver to the Master List
+        # Tacking the command to the Master list doesn't really do much if there
+        # is no AOUPTARQ command. But it allows you to search for subsequent maneuver 
+        # commands
+        self.master_list.append(aoman)
+
+        # Sort the Master list
+        self.master_list = sorted(self.master_list, key=lambda k: k['time'])
+
+
+#-------------------------------------------------------------------------------
+#
+# Process_LTCTI - Process the ltcti described by ltcti_list and add the
+#                    appropriate commands to the MASTER LIST
+#
+#-------------------------------------------------------------------------------
+    def Process_LTCTI(self, ltcti_event):
+        """
+        This method takes as input a list of strings which fully describe the 
+        ltcti that took place.  It processes that ltcti and adds
+        the appropriate commands to the MASTER LIST. Then it sorts the master list.
+
+        Inputs: man_list - list extracted from the NLET tracking file which
+                           provides all the details necessary to add the
+                           appropriate commands to self.master_list
+
+        Output:  Updated Master List
+
+        NOTE: It is assumed that an SCS-107 set of commands was added to the
+              master list prior to the call to this routine. Whenever you have
+              a full stop, the code must insert the commands for an SCS-107.
+              Since there can be more than one ltcti after a shutdown and before 
+              the Return To Science (RTS) load, the routine that calls this
+              method must attend to that chore.
+  
+              We do not want an SCS-107 to be added for ALL ltcti events that 
+              happen during a shutdown.
+
+        """
+        # Capture the LTCTI information from the event
+        RTS_start_date = ltcti_event[0]
+        self.RTS.RTS_name = ltcti_event[3]
+        self.RTS.CAP_num = ltcti_event[2]
+        self.RTS.NUM_HOURS = ltcti_event[4]
+
+        # If an LTCTI run was found, add it to the master list
+        if RTS_start_date is not None:
+            # Process the specified RTS file and get a time-stamped numpy array of the data
+            cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
+    
+            # Now convert the numpy array into SKA.Parse command format which is a list of dicts
+            LTCTI_bs_cmds = self.RTS.convert_ACIS_RTS_to_ska_parse(cmd_list)
+   
+            # The LTCTI either ran to completion or was interrupted by the Return to Science
+            # load.  Trim any LTCTI CLD commands that occurred ON or AFTER the
+            # Return to Science Time of First Command. 
+            trimmed_LTCTI_bs_cmds = self.Trim_bs_cmds_After_Date(self.Date_OFC, LTCTI_bs_cmds)
+    
+            # Concatenate the LTCTI commands to the Master list
+            self.master_list += trimmed_LTCTI_bs_cmds
+
+            # Sort the Master List
+            self.master_list = sorted(self.master_list, key=lambda k: k['time'])
+
+
 #-------------------------------------------------------------------------------
 #
 # CombineSTOP - Combine the Continuity backstop commands with the review load
@@ -542,7 +970,7 @@ class BackstopHistory(object):
 #-------------------------------------------------------------------------------
     def CombineSTOP(self, cont_bs_cmds, rev_bs_cmds, shutdown_date):
         """
-         Combine the Continuity backstop commands with the review load
+         Combine the INTERRUPTED Continuity backstop commands with the review load
          backstop commands, when both the Vehicle and Science loads have
          been stopped.
 
@@ -557,9 +985,15 @@ class BackstopHistory(object):
 
          There is usually a gap between those two values. 
 
-         The Non-Load Event Tracking File is checked for the existence of a LTCTI
-         run after the shutdown but before the start of the Review Load. If an
-         entry exists, the commands from the relevant CLD file are translated into
+         The Non-Load Event Tracking File is checked for the existence of
+         various events between the shutdown time and the Time of First 
+         Command of the review load.
+
+         These events include:   Maneuvers (OCC commanded maneuvers)
+                                 LTCTI (Long Term CTI measurement)
+                                 FEPs on or off
+
+         If an entry exists, the relevant event commands are translated into
          backstop commands which are then translated into the Ska format. Then
          they are added to the stream of commands between the Review and Continuity loads.
          If the Time of First Command of the Review load is before the end of the 
@@ -573,8 +1007,7 @@ class BackstopHistory(object):
 
                  
                  INPUTS: Continuity load backstop file commands
-                         Review Load Backstop file
-                         Review Load Vehicle Only Backstop file
+                         Review Load Backstop commands
                          Time of Shutdown
                          
 
@@ -582,41 +1015,24 @@ class BackstopHistory(object):
                          loads.
         """
         # Convert shutdown date to seconds:
-        shutdown_time = DateTime(shutdown_date).secs
+        self.shutdown_date = shutdown_date
+        self.shutdown_time = DateTime(shutdown_date).secs
 
-        # Capture the Time of First Command from the rev_bs_cmds
-        # This is to make the code more self-documenting.
-        Date_of_First_Command = rev_bs_cmds[0]['date']
-        Time_of_First_Command = rev_bs_cmds[0]['time']
-
+        # Capture the Time Of First Command (OFC) from the rev_bs_cmds
+        self.Date_OFC = rev_bs_cmds[0]['date']
+        self.Time_OFC = rev_bs_cmds[0]['time']
+        
         # Trim the Continuity commands list to include only those 
         # commands whose excution time is before the shutdown time
-        self.master_list = [cmd for cmd in cont_bs_cmds if (cmd['time'] < shutdown_time)   ]
+        self.master_list = [cmd for cmd in cont_bs_cmds if (cmd['time'] < self.shutdown_time)   ]
 
         #
         # IMPORTANT: At this point, self.master_list should consist ONLY of
         #            the TRIMMED continuity load
 
-        # Now make a copy of the SCS-107 commands and populate the times. Then
-        # concatenate the 107 commands to the master list
-        scs107_bs_cmds = copy.deepcopy(self.scs107_bs_cmds)
-        
-        # The starting time for the first scs107 command will be 1 second after the last
-        # command in the TRIMMED master list
-        base_time = self.master_list[-1]['time'] + 1
-
-        # populate the date and time slots of each command incrementing the times by one second
-        for eachcmd in scs107_bs_cmds:
-            eachcmd['time'] = base_time
-            eachcmd['date'] = DateTime(base_time).date
-
-            # Increment the base time by one second
-            base_time += 1.0
-        
-        # Now concatenate scs107 commands specific to this event to the master list
-        # which has been trimmed to include only those commands that executed prior to 
-        # the shutdown. No need to sort these at this point
-        self.master_list += scs107_bs_cmds
+        # Given that we are here due to a Full Stop, we have to insert a set of
+        # SCS-107 commands.  Thermal consequences are that ACIS is shut down
+        # and not generating heat.
 
         # Now we need to process any events that appear in the NonLoadEventTracker.txt
         # file whose times are after the stop time, but before the subsequent
@@ -624,86 +1040,37 @@ class BackstopHistory(object):
         #
         #           NSM - pitch change to 90 degrees: ALL Stop
         #           BSH - stuck at some pitch - ALL Stop
-        #     OCC Pitch Maneuver - Move to a new pitch.
+        #           MAN - OCC Pitch Maneuver - Move to a new pitch.
         #
-        # Next we determine if a MAN (maneuver) entry exists in the NLET file 
-        # between the shutdown_date and the time of the first command in "rev_bs_cmds"
-        # These could be both NSM and OCC-commanded pitch changes.
-        MAN_date, pitch, roll, q1, q2, q3, q4 = self.FindMANs(shutdown_date, rev_bs_cmds[0]['time'])
+        # Next step is to insert SCS-107 commanding into the master list since
+        # whatever caused this FULL STOP caused an SCS-107 run
 
-        while MAN_date is not None:
-            # If this is a legal maneuver, process it
-            if pitch != 0.0:
-                self.logger.info("MANEUVER FOUND! %s" % MAN_date)
-                # Now form and add the command (in SKA.Parse format - i.e. dict) which
-                # specifies the MP_TARGQUAT 
-                new_maneuver = copy.deepcopy(self.MAN_bs_cmds)
-    
-                # Set the dates, times and Q's
-                new_maneuver['date'] = MAN_date
-                new_maneuver['params']['Q1'] = float(q1)
-                new_maneuver['params']['Q2'] = float(q2)
-                new_maneuver['params']['Q3'] = float(q3)
-                new_maneuver['params']['Q4'] = float(q4)
-                new_maneuver['time'] = DateTime(MAN_date).secs
-                paramstr = 'TLMSID= AOUPTARQ, CMDS= 8, Q1= %s, Q2= %s, Q3= %s, Q4= %s, SCS= 1, STEP= 1' % (q1, q2, q3, q4)
-                new_maneuver['paramstr'] = paramstr
-    
-                # Tack the maneuver to the Master List
-                self.master_list.append(new_maneuver)
-      
-            else: # It's a bogus maneuver entry - the user didn't specify good Q's
-                self.logger.warning("Bogus Maneuver Entry! Quaternions badly specified: \n"
-                                    "Bad Q's: %g, %g, %g, %g " % (q1, q2, q3, q4) +
-                                    "...therefore bogus pitch and roll: %g, %g" % (pitch, roll))
+        self.Add_an_SCS107()
 
-            # Create the AOMANUVR command and add it to the Master List.
-            # This command actually kicks the maneuver off.
-            # NOTE: This is done whether or not the maneuver data was good.
-            #       It allows the loop to continue looking for maneuvers
-            aoman = copy.deepcopy(self.AOMANUVR_bs_cmd)
-            aoman_time = DateTime(MAN_date).secs + 1
-            aoman_date = DateTime(aoman_time).date 
-            aoman['date'] = aoman_date
-            aoman['time'] = aoman_time
-            # Tack the maneuver to the Master List
-            # Tacking the command to the Master list doesn't really do much if there
-            # is no AOUPTARQ command. But it allows you to search for subsequent maneuver 
-            # commands
-            self.master_list.append(aoman)
+        # Collect any and all events that occurred between the Shutdown time and the
+        # Time of First Command of the Review load
+        collected_events = self.Collect_Shutdown_Events(self.shutdown_date, rev_bs_cmds[0]['time'])
 
-            # See if there is another one between the one you found and the beginning of the
-            # assembled load
-            MAN_date, pitch, roll, q1, q2, q3, q4 = self.FindMANs(aoman['time'], rev_bs_cmds[0]['time'])
+        # Now we have collected any and all events that occurred after the shutdownincluding the shutdown itself.
+        # Process each event, tacking the appropriate command lists onto the Master List
+        # Remember that the first event in the list is the STOP shutdown itself
+        for man_num, eachevent in enumerate(collected_events[1:]):
+            # MANEUVER CHECK - Check to see if the event is a MANERUVER
+            if eachevent[1] == 'MAN':
+                self.Process_MANEUVER(eachevent)
+            elif eachevent[1] == 'LTCTI':
+                self.Process_LTCTI(eachevent)
+            elif eachevent[1] in self.power_command_list:
+                self.Process_Power_Command(eachevent)
 
-        # Next we determine if there is a Long Term CTI run that was done between the
-        # last time in the master list and the time of the first command in "rev_bs_cmds"
-        RTS_start_date, self.RTS.RTS_name, self.RTS.CAP_num,  self.RTS.NUM_HOURS = self.FindLTCTIrun(shutdown_date , rev_bs_cmds[0]['time'])
-
-        # If an LTCTI run was found, add it to the master list
-        if RTS_start_date is not None:
-            # Process the specified RTS file and get a time-stamped numpy array of the data
-            cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
-    
-            # Now convert the numpy array into SKA.Parse command format which is a list of dicts
-            LTCTI_bs_cmds = self.RTS.convert_ACIS_RTS_to_ska_parse(cmd_list)
-   
-            # The LTCTI either ran to completion or was interruopted by the Return to Science
-            # load.  Trim any LTCTI CLD commands that occurred ON or AFTER the
-            # Return to Science Time of First Command. 
-            trimmed_LTCTI_bs_cmds = self.Trim_bs_cmds_After_Date(Date_of_First_Command, LTCTI_bs_cmds)
-    
-            # Concatenate the LTCTI commands to the Master list
-            self.master_list += trimmed_LTCTI_bs_cmds
-    
-        # Finally,  concatenate the review load taking all the commands
+        # Finally,  concatenate the REVIEW load taking all the commands
         # to the master list.
         # NOTE: In subsequent calls to this method the TOFC of rev_bs_cmds will be
         #       the start of the *assembled* load history. Only in the case of the first
         #       call is the TOFC of rev_bs_cmds also the TOFC of the actual Review Load.
         newlist =  self.master_list + rev_bs_cmds
 
-        # sort them
+        # Final sort
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         return self.master_list
@@ -749,7 +1116,7 @@ class BackstopHistory(object):
 
              6)  Concatenate the VO remnant to the assembled continuity.
 
-             7) Concatenate the REview Load
+             7) Concatenate the Review Load
 
          NOTE: By "review" load we mean the load being reviewed this week OR
                a combination of one or more continuity loads with the load
@@ -766,18 +1133,18 @@ class BackstopHistory(object):
                          loads.
         """
         # Convert shutdown date to seconds:
-        shutdown_time = DateTime(shutdown_date).secs
+        self.shutdown_date = shutdown_date
+        self.shutdown_time = DateTime(shutdown_date).secs
 
         # Capture the Time of First Command from the rev_bs_cmds
-        # This is to make the code more self-documenting.
-        Date_of_First_Command = rev_bs_cmds[0]['date']
-        Time_of_First_Command = rev_bs_cmds[0]['time']
+        self.Date_OFC = rev_bs_cmds[0]['date']
+        self.Time_OFC = rev_bs_cmds[0]['time']
 
         # STEP 1
 
         # Trim the Continuity commands list to include only those commands whose excution
         # time is less than the time of first command of the Review load (or assembled bs list)
-        self.master_list = [cmd for cmd in cont_bs_cmds if (cmd['time'] < shutdown_time)   ]
+        self.master_list = [cmd for cmd in cont_bs_cmds if (cmd['time'] < self.shutdown_time)   ]
 
         # Capture the end of the master list (trimmed continuity )
         # so that you can use it later for the Verhicle Only Load Cut. You want it to
@@ -788,59 +1155,30 @@ class BackstopHistory(object):
         vo_cut_date = self.master_list[-1]['date']
 
         # STEP 2 SCS-107 SIMTRANS AND STOP
-
-        # Now make a copy of the SCS-107 commands and populate the times. These
-        # are: SIMTRANS, AA00, AA00, WSPOW
-        scs107_bs_cmds = copy.deepcopy(self.scs107_bs_cmds)
-        # The starting time for the first scs107 command will be 1 second after the last
-        # command in the TRIMMED master list
-        base_time = self.master_list[-1]['time'] + 1
-
-        # populate the date and time slots of each command incrementing the times by one second
-        for eachcmd in scs107_bs_cmds:
-            eachcmd['time'] = base_time
-            eachcmd['date'] = DateTime(base_time).date
-            # Increment the base time by one second
-            base_time += 1.0
-        
-        # Now concatenate scs107 commands specific to this event to the master list
-        # which has been trimmed to include only those commands that executed prior to 
-        # the shutdown. No need to sort these at this point, because the base time was
-        # the last time of the trimmed continuity load plus 1 second.
-        self.master_list += scs107_bs_cmds
+        self.Add_an_SCS107()
 
 
-        # STEP 3
-        self.logger.info("STEP - 3 Check for a LTCTI between: %s - %s" % (self.master_list[-1]['date'], 
-                                                                          rev_bs_cmds[0]['date']))
-        # Next we determine if there is a Long Term CTI run that was done between the
-        # last time in the master list and the time of the first command in "rev_bs_cmds"
-        RTS_start_date, self.RTS.RTS_name, self.RTS.CAP_num,  self.RTS.NUM_HOURS = self.FindLTCTIrun(shutdown_date , rev_bs_cmds[0]['time'])
+        # STEP 3 - Collect Events
+        # Collect any and all events that occurred between the Shutdown time and the
+        # Time of First Command of the Review load
+        collected_events = self.Collect_Shutdown_Events(self.shutdown_date, rev_bs_cmds[0]['time'])
 
-        # If an LTCTI run was found, add it to the master list
-        if RTS_start_date is not None:
-            # Process the specified RTS file and get a time-stamped numpy array of the data
-            cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
-    
-            # Now convert the numpy array into SKA.Parse command format which is a list of dicts
-            LTCTI_bs_cmds = self.RTS.convert_ACIS_RTS_to_ska_parse(cmd_list)
-    
-            # The LTCTI either ran to completion or was interruopted by the Return to Science
-            # load.  Trim any LTCTI CLD commands that occurred ON or AFTER the
-            # Return to Science Time of First Command. 
-            trimmed_LTCTI_bs_cmds = self.Trim_bs_cmds_After_Date(Date_of_First_Command, LTCTI_bs_cmds)
-    
-            # Concatenate the LTCTI run to the master list
-            self.master_list += trimmed_LTCTI_bs_cmds
-            # Sort the master list
-            self.master_list = sorted(self.master_list, key=lambda k: k['time'])
-    
+        # Now we have collected any and all events that occurred after the shutdownincluding the shutdown itself.
+        # Process each event, tacking the appropriate command lists onto the Master List
+        # Remember that the first event in the list is the STOP shutdown itself
+        for man_num, eachevent in enumerate(collected_events[1:]):
+            # MANEUVER CHECK - Check to see if the event is a MANERUVER
+            if eachevent[1] == 'MAN':
+                self.Process_MANEUVER(eachevent)
+            elif eachevent[1] == 'LTCTI':
+                self.Process_LTCTI(eachevent)
+
         # STEP 4
         vo_bs_cmds_trimmed = self.Trim_bs_cmds_Before_Date(vo_cut_date, vo_bs_cmds)
 
         # STEP 5
 
-        # Concatenate the VO list
+        # Trim the VO list by removing all commands that occur on and after the RTS load
         vo_bs_cmds_trimmed = self.Trim_bs_cmds_After_Date(rev_bs_cmds[0]['time'], vo_bs_cmds_trimmed)
 
         # STEP 6
@@ -849,7 +1187,6 @@ class BackstopHistory(object):
         self.master_list += vo_bs_cmds_trimmed
 
         # STEP 7
-
         # Finally,  concatenate the review load taking all the commands
         # to the master list
         newlist =  self.master_list + rev_bs_cmds
@@ -863,25 +1200,83 @@ class BackstopHistory(object):
 
     #-------------------------------------------------------------------------------
     #
+    # WriteCombinedCommands_Debug - Write the combined commands to a file
+    #
+    #-------------------------------------------------------------------------------
+    """
+    This method will write the command list out into a file whose path is specified
+    in outfile_path. This is a special version of writing commands which is used for
+    debug only.  You can either write a new file out, or append TO an existing file.
+    This is controlled by the "new_or_append" input argument.
+    This method also writes a dividing line into the file to help you identify chunks
+    of commands that the combiner code has inserted. This line is written first prior
+    to the associated commands.  
+
+    So the dividing line is most useful when appending commands
+
+    Don't forget that the cmd_list does not have to be the entire master list of commands.
+    You can call this method after you have assembled a spcific command set - like the set
+    of commands from an SCS-107, or a LTCTI RTS - and feed that specific command set to a 
+    file with the "append" argument.
+
+    THEREFORE the resultant file is NOT USABLE in a thermal model.  It's there only 
+    for you to debug the combiner code appearin in this class.
+
+        INPUTS: command list
+                full output file specification
+                new_or_append - "new" or "append"
+                event_id - a string to be inserted in the middle of the dividing line
+                         - the string can be whatever helps you ID the command chunk.
+
+       OUTPUTS: Nothing returned; file written.
+    """
+    def WriteCombinedCommands_Debug(self, cmd_list, outfile_path, new_or_append = 'new', event_id = 'None'):
+        # Write a new file or append to an existing file
+        if new_or_append == 'new':
+            combofile = open(outfile_path, 'w')
+        else:
+            combofile = open(outfile_path, 'a')
+
+        # Write out the dividing line
+        combofile.write('------------------------------ '+ event_id + ' -----------------------------------\n')
+
+        if event_id != 'MANEUVER':
+            # Now put out the set of commands supplied by the caller
+            for eachcmd in cmd_list:
+                if eachcmd['cmd'] != 'GET_PITCH':
+                    cmd_line = eachcmd['date'] + " | %s | %s | %s\n" % (str(eachcmd['vcdu']).zfill(7),
+                                                                        eachcmd['cmd'],
+                                                                        eachcmd['paramstr'])
+                    combofile.write(cmd_line)
+        else: # Else it's a single dict entry
+            cmd_line = cmd_list['date'] + " | %s | %s | %s\n" % (str(cmd_list['vcdu']).zfill(7),
+                                                                        cmd_list['cmd'],
+                                                                        cmd_list['paramstr'])
+            combofile.write(cmd_line)
+
+        # Done with the file....close it
+        combofile.close()
+
+    #-------------------------------------------------------------------------------
+    #
     # WriteCombinedCommands - Write the combined commands to a file
     #
     #-------------------------------------------------------------------------------
     """
     This method will write the command list out into a file whose path is specified
-    in outfile_path.  Whether or not this is an original command list or a comboned
+    in outfile_path.  Whether or not this is an original command list or a combined
     one it immaterial.
 
         INPUTS: command list
                 full output file specification
 
        OUTPUTS: Nothing returned; file written.
-
     """
     def WriteCombinedCommands(self, cmd_list, outfile_path):
         combofile = open(outfile_path, "w")
         for eachcmd in cmd_list:
             if eachcmd['cmd'] != 'GET_PITCH':
-                cmd_line = eachcmd['date'] + " | %s | %s | %s\n" % (eachcmd['vcdu'].zfill(7),
+                cmd_line = eachcmd['date'] + " | %s | %s | %s\n" % (str(eachcmd['vcdu']).zfill(7),
                                                                     eachcmd['cmd'],
                                                                     eachcmd['paramstr'])
                 combofile.write(cmd_line)
@@ -1076,176 +1471,14 @@ class BackstopHistory(object):
         # Return the array of back chains
         return load_chain
 
+   
     #-------------------------------------------------------------------------------
     #
-    # FindLTCTIrun - Given a path to a Non Load Event Tracking file, a start time
-    #                 and a stop time, search the Tracking file for any Long Term 
-    #                 CTI run (LTCTI) that occurred between the start and stop times.
+    # 
+    # 
+    #  
     #
     #-------------------------------------------------------------------------------
-    def FindLTCTIrun(self, tstart, tstop):
-        """
-        Given a path to a Non Load Event Tracking file, a start time
-        and a stop time, search the Tracking file for any Long Term 
-        CTI run (LTCTI) that occurred between the start and stop times.
-    
-        What you want to use for Start and Stop times are the SCS-107
-        times for tstart and the time of first command for the replan load
-
-        The path to the Non Load Event Tracking file (NLET) is a constructor argument
-        so that users can have their own version of the file. However the 
-        format of the file is fixed and this method expects a certain format.
-        """
-        # Convert the input tstart and tstop to seconds - this allows the
-        # user to input either seconds or DOY format - whichever is more
-        # convenient.
-        tstart = DateTime(tstart).secs
-        tstop = DateTime(tstop).secs
-    
-        # Initialize the return values to None
-        ltcti_date = None
-        ltcti_rts_file = None
-        ltcti_cap_number = None
-        ltcti_duration = None
-
-        # The Non Load Event Tracking file is an input so that different
-        # users of this module can have different NLET files.
-        nletfile = open(self.NLET_tracking_file_path, 'r')
-    
-        # Get the first line
-        nletline = nletfile.readline()
-    
-        # Process each line. If it starts with a # then ignore it - it's a 
-        # comment
-        # 
-        # for as long as you have input lines......
-        while nletline:
-            # Check to see if it's a comment line
-            if nletline[0] != '#':
-                # Not a comment; check to see if it's a LTCTI line
-                # and if so, if the time stamp on the line is between 
-                # tstart and tstop
-                #
-                # Split the line into tokens
-                splitline = nletline.split()
-                # If it's not a "GO line; is an LTCTI line
-                # and the time stamp is between tstart and tstop
-                # then capture the information
-                #
-                # NOTE: The reason we have to check to see if it's
-                # a GO line is that ther eis only one token in that line
-                if (splitline[0] != 'GO') and \
-                   (splitline[1] == 'LTCTI') and \
-                   (DateTime(splitline[0]).secs >= tstart) and \
-                   (DateTime(splitline[0]).secs <= tstop):
-    
-                    # We have found a LTCTI event that affects our
-                    # review load. Capture the values
-                    ltcti_date = splitline[0]
-                    ltcti_rts_file = splitline[3]
-                    ltcti_cap_number = splitline[2]
-                    # NEW
-                    ltcti_duration = splitline[4]
-
-            # Read the next line - or try to
-            nletline = nletfile.readline()
-    
-        # You've read all the lines. Close the file.
-        nletfile.close()
-    
-        # Return items from any found netline; or Nones if 
-        # no LTCTI line matched the requirements.
-        return ltcti_date, ltcti_rts_file, ltcti_cap_number, ltcti_duration
-
-
-
-
-    #-------------------------------------------------------------------------------
-    #
-    # FindMANs - Given a path to a Non Load Event Tracking file, a start time
-    #            and a stop time, search the Tracking file for any maneuver
-    #             that occurred between the start and stop times.
-    #
-    #-------------------------------------------------------------------------------
-    def FindMANs(self, dstart, dstop):
-        """
-        Using the path to a Non Load Event Tracking file, a start time
-        and a stop time, search the Tracking file for any maneuver entry
-        that occurred between the start and stop times.
-    
-        Generally what you want to use for Start and Stop times are the SCS-107
-        times for tstart and the time of first command for the replan load, or
-        the start time for the review plus any accumulated loads or events.
-
-        The path to the Non Load Event Tracking file (NLET) is a constructor argument
-        so that users can have their own version of the file. However the 
-        format of the file is fixed and this method expects a certain format.
-        """
-        # Convert the input tstart and tstop to seconds - this allows the
-        # user to input either seconds or DOY format - whichever is more
-        # convenient.
-        tstart = DateTime(dstart).secs
-        tstop = DateTime(dstop).secs
-    
-        # Initialize the return values to None
-        MAN_date = None
-        MAN_pitch = None
-        MAN_roll = None
-        MAN_q1 = None
-        MAN_q2 = None
-        MAN_q3 = None
-        MAN_q4 = None
-    
-        # The Non Load Event Tracking file is an input so that different
-        # users of this module can have different NLET files.
-        nletfile = open(self.NLET_tracking_file_path, 'r')
-    
-        # Get the first line
-        nletline = nletfile.readline()
-    
-        # Process each line. If it starts with a # then ignore it - it's a 
-        # comment
-        # 
-        # for as long as you have input lines......
-        while nletline:
-            # Check to see if it's a comment line
-            if nletline[0] != '#':
-                # Not a comment; check to see if it's a MAN line
-                # and if so, if the time stamp on the line is between 
-                # tstart and tstop
-                #
-                # Split the line into tokens
-                splitline = nletline.split()
-                # If it's not a "GO line; and is a MAN line
-                # and the time stamp is between tstart and tstop
-                # then capture the information
-                #
-                # NOTE: The reason we have to check to see if it's
-                # a GO line is that there is only one token in that line
-                if (splitline[0] != 'GO') and \
-                   (splitline[1] == 'MAN') and \
-                   (DateTime(splitline[0]).secs >= tstart) and \
-                   (DateTime(splitline[0]).secs <= tstop):
-    
-                    # We have found a MAN event that affects our
-                    # review load. Capture the values
-                    MAN_date = splitline[0]
-                    MAN_pitch = splitline[2]
-                    MAN_roll = splitline[3]
-                    MAN_q1 = splitline[4]
-                    MAN_q2 = splitline[5]
-                    MAN_q3 = splitline[6]
-                    MAN_q4 = splitline[7]
-     
-            # Read the next line - or try to
-            nletline = nletfile.readline()
-    
-        # You've read all the lines. Close the file.
-        nletfile.close()
-    
-        # Return items from any found netline; or Nones if 
-        # no LTCTI line matched the requirements.
-        return MAN_date, MAN_pitch, MAN_roll, MAN_q1, MAN_q2, MAN_q3, MAN_q4
 
 
     #-------------------------------------------------------------------------------
