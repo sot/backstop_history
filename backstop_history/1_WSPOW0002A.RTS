@@ -1,0 +1,37 @@
+! $Revision:  $
+! $Date:  $
+!================================================================
+!
+!  NAME:         1_WSPOW0002A.RTS
+!  DESCRIPTION:
+!
+!  This RTS loads the single ACIS command WSPOW0002A into an SCS.
+!  WSPOW0002A turns on FEPs 1, 3, and 5 with all video boards
+!  off.
+!
+!  INVOCATION: FOT Request
+!
+!    RTSLOAD, 1_WSPOW0002A, SCS_NUM=nnn
+!
+!
+!  EXECUTED BY/WHEN:
+!
+!      Contingency CAP
+!
+!  AUTHORIZED BY: ACIS Ops or SOT
+!
+!  CAUTIONS/RESTRICTIONS:
+!      - See CAP
+!
+!
+!  HISTORY:
+!  Date         Author          Description
+!  ____________ ____________    ________________________
+!
+!  09-10-19     K. Gage         Original Version 
+!
+!================================================================
+
+SCS_CATEGORY, VEHICLE
+
+ACIS, WSPOW0002A          ! Turn on FEPs 1, 3, & 5 with all video boards off

@@ -30,21 +30,24 @@ class LTCTI_ACIS_commands(object):
 
     # Constructor
     def __init__(self):
-        # Create the rec array dtype for the mnemonics.hrd file read
-        self.mnemonics_DTYPE = [('packet_id', '|S23'), 
-                                ('cmd_id', '|S23'), 
-                                ('acis_table_hdr',  '|S23')]
 
          # Initialize the recognized command list
         self.cmd_list = ['WSVIDALLDN',
-                         'WSPOW08E1E',
-                         'WT00C62014',
                          'XTZ0000005', 
+                         'XCZ0000005',
                          'RS_0000001',
                          'RH_0000001',
                          'AA00000000',
                          'WSPOW00000',
-                         'WSPOW08002']
+                         'WSPOW0002A',
+                         'WSPOW08002',
+                         'WSPOW08F3E',
+                         'WSPOW08E1E',
+                         'WT007AC024',
+                         'WT007AE024',
+                         'WT00B26014',
+                         'WT00C62014',
+                         'WT00C60014']
          
         self.cmd_vals = {'XTZ0000005': {'CMDS': '4',
                                         'WORDS': '4',
@@ -72,8 +75,7 @@ class LTCTI_ACIS_commands(object):
 
                          'WT007AC024': {'CMDS': '87',
                                         'WORDS': '150',
-                                        'PACKET': 'PACKET{40)= D80009600962D7C00090004308AC024007A10730'},                          
-
+                                        'PACKET': 'PACKET{40)= D80009600962D7C00090004308AC024007A10730'},                      
                          'WT007AE024': {'CMDS': '87',
                                         'WORDS': '150',
                                         'PACKET': 'PACKET{40)= D80009600962D80000900046541E024007A65790'},
@@ -81,7 +83,11 @@ class LTCTI_ACIS_commands(object):
                          'WT00B26014': {'CMDS': '87',
                                         'WORDS': '150',
                                         'PACKET': 'PACKET{40)= D80009600963194000900049271601400B210730'},
-                          
+                         
+                         'WSPOW08F3E': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D80000700071A9E00200000008F0001003E'},
+ 
                          'WSPOW0CF3F': {'CMDS': '5',
                                         'WORDS': '7',
                                         'PACKET': 'PACKET(40)= D800007000701670020000000CF0001003F'},
@@ -90,14 +96,23 @@ class LTCTI_ACIS_commands(object):
                                         'WORDS': '7',
                                         'PACKET': 'PACKET(40)= D8000070007030500200000000000010000'},
                           
+                         'WSPOW0002A': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D80000700073E800020000000000001002A'},
+                          
                          'WSPOW08E1E': {'CMDS': '42',
                                         'WORDS': '73',
                                         'PACKET': 'PACKET(40)= D8000070007030500200000000000019999'},
                           
                          'WT00C62014': {'CMDS': '101',
                                         'WORDS': '102',
-                                        'PACKET': 'PACKET(40)= D8000070007030500200000000000011111'}
+                                        'PACKET': 'PACKET(40)= D8000070007030500200000000000011111'},
+                          
+                         'WT00C60014': {'CMDS': '87',
+                                        'WORDS': '150',
+                                        'PACKET': 'PACKET(40)= D8000960096381600090004C357001400C6237A0'}
                                     
+                                      
                         } # END Command Constants Dictionary
 
 

@@ -29,7 +29,7 @@ class LTCTI_RTS(object):
       3) The length of the CTI run - if undisturbed by a Return to Science - is
          1 day, 15 hours 0 minutes and 0 seconds.
 
-    A Sample input line from the .RTS file looks like this:
+    A sample input line from the .RTS file looks like this:
 
          ACIS,WSPOW0CF3F,DELTA=00:00:01.000
 
@@ -59,7 +59,7 @@ class LTCTI_RTS(object):
     Second, the processRTS() method is used to open the file, read
     and process each line and write the results into a numpy array.  The array DTYPE is:
 
-dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20'), ('substitution_parameter', 'S20'), ('substitution_parameter_value', 'S20'), ('DELTA', '<f8'), ('SCS_NUM', 'S5')])
+dtype=[('date', 'U20'), ('time', '<f8'), ('statement', 'U20'), ('mnemonic', 'U20'), ('substitution_parameter', 'U20'), ('substitution_parameter_value', 'U20'), ('DELTA', '<f8'), ('SCS_NUM', 'U5')])
     
     Every command is converted into an array entry.  The column names used in the DTYPE 
     were obtained from OP-19.
@@ -98,14 +98,14 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
     # Constructor
     def __init__(self, RTS_file_loc):
         # Create the rec array dtype for the mnemonics.hrd file read
-        self.RTS_dtype = [('date', '|S20'),
+        self.RTS_dtype = [('date', '|U20'),
                           ('time','<f8'),
-                          ('statement', '|S20'),           
-                          ('mnemonic', '|S20'), 
-                          ('substitution_parameter',  '|S20'),
-                          ('substitution_parameter_value',  '|S20'),
+                          ('statement', '|U20'),           
+                          ('mnemonic', '|U20'), 
+                          ('substitution_parameter',  '|U20'),
+                          ('substitution_parameter_value',  '|U20'),
                           ('DELTA','<f8'),
-                          ('SCS_NUM', '|S5')]
+                          ('SCS_NUM', '|U5')]
         self.load_type = None
         self.RTS_name = None
         self.SCS_NUM = '135'
@@ -123,6 +123,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
 
         # Create an instance of the ACIS LTCTI CLD file commands class
         self.ACIS_cmds = LTCTI_ACIS_commands.LTCTI_ACIS_commands()
+
 
     #-------------------------------------------------------------------------------
     #   
@@ -477,9 +478,9 @@ array([ ('2018:001:00:00:00.00', 631152069.184, '/CMD', 'OORMPEN', 'None', 'None
     #    Method Convert_RTS_to_ska_parse
     #
     #-------------------------------------------------------------------------------
-    def convert_RTS_to_ska_parse(self, RTS_cmds):
-        """
-        This is the method you overload if you want to convert every command
-        in the RTS_cmds array into SKA.Parse format
-        """
-        pass
+#    def convert_RTS_to_ska_parse(self, RTS_cmds):
+#        """
+#        This is the method you overload if you want to convert every command
+#        in the RTS_cmds array into SKA.Parse format
+#        """
+#        pass
