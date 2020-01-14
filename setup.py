@@ -6,7 +6,8 @@ url = 'https://github.com/acisops/backstop_history/tarball/{}'.format(__version_
 
 setup(name='backstop_history',
       packages=["backstop_history"],
-      version=__version__,
+      use_scm_version=True,
+      setup_requires=['setuptools_scm', 'setuptools_scm_git_archive'],
       description='Tools to assemble backstop command histories for Thermal Models',
       url='http://github.com/acisops/backstop_history',
       download_url=url,
