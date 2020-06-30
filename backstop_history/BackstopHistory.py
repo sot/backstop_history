@@ -19,7 +19,7 @@ from pathlib import Path
 
 from backstop_history import LTCTI_RTS
 
-import Ska.ParseCM
+import kadi.commands
 from Chandra.Time import DateTime
 
 
@@ -388,7 +388,7 @@ class BackstopHistory(object):
         """
         Given the path to an ofls directory, this method will call the "globfile"
         to obtain the name of the backstop file that represents the built load.
-        It then calls Ska.ParseCM.read_backstop to obtain the list of commands
+        It then calls kadi.commands.get_cmds_from_backstop to obtain the list of commands
         Review and Continuity loads appear in the ....ofls/ subdir and always
         begin with the characters "CR"
 
@@ -406,10 +406,9 @@ class BackstopHistory(object):
         bs_name = os.path.split(backstop_file_path)[-1]
 
         # Read the commands located in that backstop file
-        bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s" % (len(bs_cmds),
-                                                                                         bs_cmds[0]['date'],
-                                                                                         bs_cmds[-1]['date']))
+        bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
+        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s"
+                         % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
 
         return bs_cmds, bs_name
 
@@ -424,7 +423,7 @@ class BackstopHistory(object):
         """
         Given the path to an ofls directory, this method will call the "globfile"
         to obtain the name of the backstop file that represents the built load.
-        It then calls Ska.ParseCM.read_backstop to obtain the list of commands
+        It then calls kadi.commands.get_cmds_from_backstop to obtain the list of commands
         Vehicle_only loads appear in the ....ofls/vehicle/ subdir and always
         begin with the characters "VR"
 
@@ -442,10 +441,9 @@ class BackstopHistory(object):
         bs_name = os.path.split(backstop_file_path)[-1]
 
         # Read the commands located in that backstop file
-        bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds),
-                                                                                                   bs_cmds[0]['date'],
-                                                                                                   bs_cmds[-1]['date']))
+        bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
+        self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s'
+                         % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
 
         return bs_cmds, bs_name
 
