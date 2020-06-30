@@ -407,6 +407,8 @@ class BackstopHistory(object):
 
         # Read the commands located in that backstop file
         bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
+        bs_cmds = bs_cmds.as_list_of_dict()
+
         self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s"
                          % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
 
@@ -440,8 +442,11 @@ class BackstopHistory(object):
         # Extract the name of the backstop file from the path
         bs_name = os.path.split(backstop_file_path)[-1]
 
-        # Read the commands located in that backstop file
+        # Read the commands located in that backstop file and convert to
+        # list of dict.
         bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
+        bs_cmds = bs_cmds.as_list_of_dict()
+
         self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s'
                          % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
 
@@ -488,7 +493,6 @@ class BackstopHistory(object):
         # This is a list of dicts. Sort the list based upon the Chandra Date
         # string located in the key: "date". This will interleave all the
         # commands correctly.
-#        self.master_list = sorted (newlist, key=lambda k: k['date'])
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the sorted command list to the caller
