@@ -334,6 +334,16 @@ class BackstopHistory(object):
         """
         # `oflsdir` is like <root>/2018/MAY2118/ofls
         oflsdir = Path(oflsdir)
+
+        # Require that oflsdir starts with /data/acis unless the environment
+        # variable ALLOW_NONSTANDARD_OFLSDIR is set.
+        allow_nonstandard_oflsdir = 'ALLOW_NONSTANDARD_OFLSDIR' in os.environ
+        if (not allow_nonstandard_oflsdir
+                and oflsdir.parts[:3] != ('/', 'data', 'acis')):
+            raise ValueError('--backstop_file must start with /data/acis. To remove this '
+                             'restriction set the environment variable '
+                             'ALLOW_NONSTANDARD_OFLSDIR to any value.')
+
         oflsdir_root = oflsdir.parents[2]  # gives <root>
 
         # Does a Continuity file exist for the input path
@@ -348,11 +358,14 @@ class BackstopHistory(object):
             # Read the first line...the path to the continuity load. The
             # continuity path in the file is hardwired to a /data/acis path,
             # independent of user-specified `oflsdir` (e.g.
-            # /data/acis/LoadReviews/2018/MAY2118/ofls), so fix that by putting
-            # the last 3 parts (2018/MAY2118/ofls) onto the oflsdir root.
-
+            # /data/acis/LoadReviews/2018/MAY2118/ofls), so if a non-standard
+            # OFLS dir path is allowed then fix that by putting the last 3 parts
+            # (2018/MAY2118/ofls) onto the oflsdir root.
             pth = Path(ofls_cont_file.readline().strip())
-            continuity_load_path = str(Path(oflsdir_root, *pth.parts[-3:]))
+            if allow_nonstandard_oflsdir:
+                continuity_load_path = str(Path(oflsdir_root, *pth.parts[-3:]))
+            else:
+                continuity_load_path = str(pth)
 
             # Read the entire second line - load type and possibly the interrupt time
             type_line = ofls_cont_file.readline()
