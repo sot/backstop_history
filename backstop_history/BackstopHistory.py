@@ -15,10 +15,11 @@ import glob
 import numpy as np
 import os
 import logging
+from pathlib import Path
 
 from backstop_history import LTCTI_RTS
 
-import Ska.ParseCM
+import kadi.commands
 from Chandra.Time import DateTime
 
 
@@ -72,13 +73,13 @@ def config_logger(verbose):
     console.setFormatter(formatter)
     console.setLevel(loglevel)
     logger.addHandler(console)
-    
+
     return logger
 
 
 class BackstopHistory(object):
 
-    def __init__(self, cont_file_name='ACIS-Continuity.txt', 
+    def __init__(self, cont_file_name='ACIS-Continuity.txt',
                  NLET_tracking_file_path='/data/acis/LoadReviews/NonLoadTrackedEvents.txt',
                  logger=None, verbose=1):
         if logger is None:
@@ -97,8 +98,8 @@ class BackstopHistory(object):
 
         # Create a Dtype for the Continuity Info array
         self.cont_dtype = [('base_load', '|S20'),
-                           ('cont_file', '|S80'), 
-                           ('load_type', '|S10'), 
+                           ('cont_file', '|S80'),
+                           ('load_type', '|S10'),
                            ('load_tofc', '|S25')]
 
         # Create the SCS-107 command set that's relevant for ACIS
@@ -195,7 +196,7 @@ class BackstopHistory(object):
                                 'time': -1.0,
                                 'tlmsid': 'AOUPTARQ',
                                 'vcdu': 0000000}
-                             
+
         # Create the AOMANUVR command that initiates a maneuver
         # VCDU's, SCS, and STEP values in this data structure are bogus.  Meaningful times
         # will be entered in a copy of this data structure when the command
@@ -216,7 +217,7 @@ class BackstopHistory(object):
                                 'time': -1.0,
                                 'tlmsid': 'AOMANUVR',
                                 'vcdu': 0000000}
- 
+
         # Create the AONSMSAF command that initiates a maneuver
         # VCDU's, SCS, and STEP values in this data structure are bogus.  Meaningful times
         # will be entered in a copy of this data structure when the command
@@ -237,13 +238,13 @@ class BackstopHistory(object):
                                 'time': -1.0,
                                 'tlmsid': 'AONSMSAF',
                                 'vcdu': 0000000}
-    
+
 
 #-------------------------------------------------------------------------------
 #
 # method set_backstop_lists - Given the name of a weekly load (e.g. MAR2717A)
 #                             and the name of the backstop file for that load,
-#                             insert the load name into the beginning of the class 
+#                             insert the load name into the beginning of the class
 #                             attribute list:  self.load_list and the backstop file
 #                             name at the beginning of the self.backstop_list
 #
@@ -252,15 +253,15 @@ class BackstopHistory(object):
         """
         Given the name of a weekly load (e.g. MAR2717A)
         and the name of the backstop file for that load,
-        insert the load name into the beginning of the class 
+        insert the load name into the beginning of the class
         attribute list:  self.load_list and the backstop file
         name at the beginning of the self.backstop_list
-    
+
         The idea here is to maintain a history of the files and directories
-        you used to create the set of backstop commands.  
-    
+        you used to create the set of backstop commands.
+
         After being used once, the lists should be cleared by calling
-        self.clear_backstop_lists if you are running two or more histories 
+        self.clear_backstop_lists if you are running two or more histories
         in one program
         """
         if load_week is not None:
@@ -268,7 +269,7 @@ class BackstopHistory(object):
 
         if backstop_name is not None:
             self.backstop_list.insert(0, backstop_name)
-    
+
         if load_type is not None:
             self.load_type_list.insert(0, load_type)
 
@@ -298,68 +299,93 @@ class BackstopHistory(object):
         print(self.load_list)
         print(self.backstop_list)
         print(self.load_type_list)
-    
+
 #-------------------------------------------------------------------------------
 #
 #  get_backstop_continuity_path
 #
 #-------------------------------------------------------------------------------
     def get_continuity_file_info(self, oflsdir):
-        """ Given an ofls directory, open the Continuity text file 
+        """ Given an ofls directory, open the Continuity text file
             within the OFLS directory; read the continuity file path,
-            from the first line, the type of load the *REVIEW* load is (not 
+            from the first line, the type of load the *REVIEW* load is (not
             the continuity load), on the second line.  If the review load
             is not the normal weekly load (e.g. scs-107 or TOO) grab the time
             of interrupt also from the second line.
-            
-            
+
+
                - The load in oflsdir was built using another load as Continuity
                  assuming that the build was either a normal weekly load or a TOO
                  load. You wouldn't be using this function if this is a return to
                  science load after a shutdown of some sort.
-    
-             Tack the continuity file name (e.g. ACIS-Continuity.txt) to the path. Open up the 
+
+             Tack the continuity file name (e.g. ACIS-Continuity.txt) to the path. Open up the
              Continuity text file and read the continuity load path.
 
              Return the  path to that continuity file ofls directory.
-    
+
              INPUTS: The OFLS "review" directory
-    
+
             OUTPUTS: The full path to the continuity ofls backstop file
                      The type of load the REVIEW load is.
                      The time of interrupt if the REVIEW load is an interrupt
                      load.
-                     
+
         """
+        # `oflsdir` is like <root>/2018/MAY2118/ofls
+        oflsdir = Path(oflsdir)
+
+        # Require that oflsdir starts with /data/acis unless the environment
+        # variable ALLOW_NONSTANDARD_OFLSDIR is set.
+        allow_nonstandard_oflsdir = 'ALLOW_NONSTANDARD_OFLSDIR' in os.environ
+        if (not allow_nonstandard_oflsdir
+                and oflsdir.parts[:3] != ('/', 'data', 'acis')):
+            raise ValueError('--backstop_file must start with /data/acis. To remove this '
+                             'restriction set the environment variable '
+                             'ALLOW_NONSTANDARD_OFLSDIR to any value.')
+
+        oflsdir_root = oflsdir.parents[2]  # gives <root>
+
         # Does a Continuity file exist for the input path
-        ofls_cont_fn = os.path.join(oflsdir, self.continuity_file_name)
-        if os.path.exists(ofls_cont_fn):
-    
-            # Open the Continuity text file in the ofls directory and read the name of the 
+        ofls_cont_fn = oflsdir / self.continuity_file_name
+
+        if ofls_cont_fn.exists():
+
+            # Open the Continuity text file in the ofls directory and read the name of the
             # continuity load date (e.g. FEB2017).  then close the file
             ofls_cont_file = open(ofls_cont_fn, 'r')
-            # Read the first line...the pat to the continuity load
-            continuity_load_path = ofls_cont_file.readline()[:-1]
-    
+
+            # Read the first line...the path to the continuity load. The
+            # continuity path in the file is hardwired to a /data/acis path,
+            # independent of user-specified `oflsdir` (e.g.
+            # /data/acis/LoadReviews/2018/MAY2118/ofls), so if a non-standard
+            # OFLS dir path is allowed then fix that by putting the last 3 parts
+            # (2018/MAY2118/ofls) onto the oflsdir root.
+            pth = Path(ofls_cont_file.readline().strip())
+            if allow_nonstandard_oflsdir:
+                continuity_load_path = str(Path(oflsdir_root, *pth.parts[-3:]))
+            else:
+                continuity_load_path = str(pth)
+
             # Read the entire second line - load type and possibly the interrupt time
             type_line = ofls_cont_file.readline()
             # Split the line
             split_type_line = type_line.split()
-         
+
             # The review load type is always there, and always the first item on the line
             #  so capture it
             review_load_type = split_type_line[0]
-    
+
             # If the review load type is not "Normal", grab the interrupt time
             # or set the interrupt time to "None"
             if review_load_type.upper() != "NORMAL":
                 interrupt_time = split_type_line[1]
             else:
                 interrupt_time = None
-    
+
             # Done with the file...close it
             ofls_cont_file.close()
-    
+
             # Return the Continuity load path to the caller.
             return continuity_load_path, review_load_type, interrupt_time
         else:
@@ -373,33 +399,34 @@ class BackstopHistory(object):
 #-------------------------------------------------------------------------------
     def get_bs_cmds(self, oflsdir):
         """
-        Given the path to an ofls directory, this method will call the "globfile" 
+        Given the path to an ofls directory, this method will call the "globfile"
         to obtain the name of the backstop file that represents the built load.
-        It then calls Ska.ParseCM.read_backstop to obtain the list of commands
+        It then calls kadi.commands.get_cmds_from_backstop to obtain the list of commands
         Review and Continuity loads appear in the ....ofls/ subdir and always
         begin with the characters "CR"
 
         INPUT: oflsdir = Path to the OFLS directory (string)
-    
-        OUTPUT   : bs_cmds = A list of the ommands within the backstop file 
+
+        OUTPUT   : bs_cmds = A list of the ommands within the backstop file
                              in ofls directory that represents the  built load.
                                 -  list of dictionary items
-    
+
         """
         backstop_file_path = globfile(os.path.join(oflsdir, 'CR*.backstop'))
         self.logger.info("GET_BS_CMDS - Using backstop file %s" % backstop_file_path)
-    
+
         # Extract the name of the backstop file from the path
         bs_name = os.path.split(backstop_file_path)[-1]
-    
+
         # Read the commands located in that backstop file
-        bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s" % (len(bs_cmds), 
-                                                                                         bs_cmds[0]['date'], 
-                                                                                         bs_cmds[-1]['date']))
-    
-        return bs_cmds, bs_name 
-    
+        bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
+        bs_cmds = bs_cmds.as_list_of_dict()
+
+        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s"
+                         % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
+
+        return bs_cmds, bs_name
+
 #-------------------------------------------------------------------------------
 #
 #    get_vehicle_only_bs_cmds - Get the backstop commands that live in the
@@ -409,32 +436,34 @@ class BackstopHistory(object):
 #-------------------------------------------------------------------------------
     def get_vehicle_only_bs_cmds(self, oflsdir):
         """
-        Given the path to an ofls directory, this method will call the "globfile" 
+        Given the path to an ofls directory, this method will call the "globfile"
         to obtain the name of the backstop file that represents the built load.
-        It then calls Ska.ParseCM.read_backstop to obtain the list of commands
+        It then calls kadi.commands.get_cmds_from_backstop to obtain the list of commands
         Vehicle_only loads appear in the ....ofls/vehicle/ subdir and always
         begin with the characters "VR"
 
         INPUT: oflsdir = Path to the OFLS directory (string)
-    
-        OUTPUT   : bs_cmds = A list of the ommands within the backstop file 
+
+        OUTPUT   : bs_cmds = A list of the ommands within the backstop file
                              in ofls directory that represents the  built load.
                                 -  list of dictionary items
-    
+
         """
         backstop_file_path = globfile(os.path.join(oflsdir, "vehicle", 'VR*.backstop'))
         self.logger.info('GET_BS_CMDS - Using backstop file %s' % backstop_file_path)
-    
+
         # Extract the name of the backstop file from the path
         bs_name = os.path.split(backstop_file_path)[-1]
-    
-        # Read the commands located in that backstop file
-        bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds), 
-                                                                                                   bs_cmds[0]['date'], 
-                                                                                                   bs_cmds[-1]['date']))
-    
-        return bs_cmds, bs_name 
+
+        # Read the commands located in that backstop file and convert to
+        # list of dict.
+        bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
+        bs_cmds = bs_cmds.as_list_of_dict()
+
+        self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s'
+                         % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
+
+        return bs_cmds, bs_name
 
 #-------------------------------------------------------------------------------
 #
@@ -453,8 +482,8 @@ class BackstopHistory(object):
                a combination of one or more continuity loads with the load
                being reviewed this week.  This routine can be called multiple
                times - tacking continuity loads to the start of the "master list"
-               
-               NOTE: There can be one or more commands at the start of the 
+
+               NOTE: There can be one or more commands at the start of the
                      Review load whose time stamp is prior to the time stamp
                      of the last command in the continuity load. All commands
                      are executed because review commands are put is a different
@@ -467,24 +496,23 @@ class BackstopHistory(object):
                  INPUTS: Continuity load backstop file commands
                          Review Load Backstop file
 
-                OUTPUTS: Date-sorted Backstop commands of the combined Continuity 
+                OUTPUTS: Date-sorted Backstop commands of the combined Continuity
                          and Review loads.
         """
 
         # Combine the continuity command list with the review command list
         newlist = cont_bs_cmds+rev_bs_cmds
-        
+
         # This is a list of dicts. Sort the list based upon the Chandra Date
-        # string located in the key: "date". This will interleave all the 
+        # string located in the key: "date". This will interleave all the
         # commands correctly.
-#        self.master_list = sorted (newlist, key=lambda k: k['date'])
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the sorted command list to the caller
         return self.master_list
-    
-    
-    
+
+
+
 #-------------------------------------------------------------------------------
 #
 # CombineTOO - Combine the Continuity backstop commands with the review load
@@ -499,7 +527,7 @@ class BackstopHistory(object):
          backstop commands, without overlap.  The Continuity load is
          cut at the time of the first command in the TOO load. If there
          are commands whose execution time is precisely the cut time, they
-         will be kept and executed.  The possible AOACRSTD pre-TOFC command 
+         will be kept and executed.  The possible AOACRSTD pre-TOFC command
          in the TOO load is placed appropriately.
 
          NOTE: By "review" load we mean the load being reviewed this week OR
@@ -516,13 +544,13 @@ class BackstopHistory(object):
                 OUTPUTS: Backstop commands of the combined Continuity and Review
                          loads.
         """
-        # Get all the Continuity commands up to and including the time of first command of 
+        # Get all the Continuity commands up to and including the time of first command of
         # the Review load
         # NOTE: This will automatically take care of the fact that one or more of the first commands
         # in the new load will come before the end of commands in the continuity load.
-        # 
+        #
         self.master_list = [cmd for cmd in cont_bs_cmds if cmd['time'] <= rev_bs_cmds[0]['time']]
- 
+
         # Now concatenate the review load taking all the commands
         # to the master list
         newlist = self.master_list + rev_bs_cmds
@@ -530,9 +558,9 @@ class BackstopHistory(object):
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         return self.master_list
-    
-    
-    
+
+
+
 #-------------------------------------------------------------------------------
 #
 # CombineSTOP - Combine the Continuity backstop commands with the review load
@@ -546,23 +574,23 @@ class BackstopHistory(object):
          backstop commands, when both the Vehicle and Science loads have
          been stopped.
 
-         The combination is clean - there will be no interleaved ACA 
-         commands or any other overlap. 
+         The combination is clean - there will be no interleaved ACA
+         commands or any other overlap.
 
          The Continuity load is cut at the time of shutdown. That value is
          found in the Non-Load Event Tracking file.
 
          The Time of First Command is obtained by the Review load backstop
-         file itself. 
+         file itself.
 
-         There is usually a gap between those two values. 
+         There is usually a gap between those two values.
 
          The Non-Load Event Tracking File is checked for the existence of a LTCTI
          run after the shutdown but before the start of the Review Load. If an
          entry exists, the commands from the relevant CLD file are translated into
          backstop commands which are then translated into the Ska format. Then
          they are added to the stream of commands between the Review and Continuity loads.
-         If the Time of First Command of the Review load is before the end of the 
+         If the Time of First Command of the Review load is before the end of the
          LTCTI, then the LTCTI commands which did not occur are chopped.
 
 
@@ -571,12 +599,12 @@ class BackstopHistory(object):
                being reviewed this week.  This routine can be called multiple
                times - tacking continuity loads to the start of the "master list"
 
-                 
+
                  INPUTS: Continuity load backstop file commands
                          Review Load Backstop file
                          Review Load Vehicle Only Backstop file
                          Time of Shutdown
-                         
+
 
                 OUTPUTS: Backstop commands of the combined Continuity and Review
                          loads.
@@ -589,7 +617,7 @@ class BackstopHistory(object):
         Date_of_First_Command = rev_bs_cmds[0]['date']
         Time_of_First_Command = rev_bs_cmds[0]['time']
 
-        # Trim the Continuity commands list to include only those 
+        # Trim the Continuity commands list to include only those
         # commands whose excution time is before the shutdown time
         self.master_list = [cmd for cmd in cont_bs_cmds if (cmd['time'] < shutdown_time)   ]
 
@@ -600,7 +628,7 @@ class BackstopHistory(object):
         # Now make a copy of the SCS-107 commands and populate the times. Then
         # concatenate the 107 commands to the master list
         scs107_bs_cmds = copy.deepcopy(self.scs107_bs_cmds)
-        
+
         # The starting time for the first scs107 command will be 1 second after the last
         # command in the TRIMMED master list
         base_time = self.master_list[-1]['time'] + 1
@@ -612,9 +640,9 @@ class BackstopHistory(object):
 
             # Increment the base time by one second
             base_time += 1.0
-        
+
         # Now concatenate scs107 commands specific to this event to the master list
-        # which has been trimmed to include only those commands that executed prior to 
+        # which has been trimmed to include only those commands that executed prior to
         # the shutdown. No need to sort these at this point
         self.master_list += scs107_bs_cmds
 
@@ -626,7 +654,7 @@ class BackstopHistory(object):
         #           BSH - stuck at some pitch - ALL Stop
         #     OCC Pitch Maneuver - Move to a new pitch.
         #
-        # Next we determine if a MAN (maneuver) entry exists in the NLET file 
+        # Next we determine if a MAN (maneuver) entry exists in the NLET file
         # between the shutdown_date and the time of the first command in "rev_bs_cmds"
         # These could be both NSM and OCC-commanded pitch changes.
         MAN_date, pitch, roll, q1, q2, q3, q4 = self.FindMANs(shutdown_date, rev_bs_cmds[0]['time'])
@@ -636,9 +664,9 @@ class BackstopHistory(object):
             if pitch != 0.0:
                 self.logger.info("MANEUVER FOUND! %s" % MAN_date)
                 # Now form and add the command (in SKA.Parse format - i.e. dict) which
-                # specifies the MP_TARGQUAT 
+                # specifies the MP_TARGQUAT
                 new_maneuver = copy.deepcopy(self.MAN_bs_cmds)
-    
+
                 # Set the dates, times and Q's
                 new_maneuver['date'] = MAN_date
                 new_maneuver['params']['Q1'] = float(q1)
@@ -648,10 +676,10 @@ class BackstopHistory(object):
                 new_maneuver['time'] = DateTime(MAN_date).secs
                 paramstr = 'TLMSID= AOUPTARQ, CMDS= 8, Q1= %s, Q2= %s, Q3= %s, Q4= %s, SCS= 1, STEP= 1' % (q1, q2, q3, q4)
                 new_maneuver['paramstr'] = paramstr
-    
+
                 # Tack the maneuver to the Master List
                 self.master_list.append(new_maneuver)
-      
+
             else: # It's a bogus maneuver entry - the user didn't specify good Q's
                 self.logger.warning("Bogus Maneuver Entry! Quaternions badly specified: \n"
                                     "Bad Q's: %g, %g, %g, %g " % (q1, q2, q3, q4) +
@@ -663,12 +691,12 @@ class BackstopHistory(object):
             #       It allows the loop to continue looking for maneuvers
             aoman = copy.deepcopy(self.AOMANUVR_bs_cmd)
             aoman_time = DateTime(MAN_date).secs + 1
-            aoman_date = DateTime(aoman_time).date 
+            aoman_date = DateTime(aoman_time).date
             aoman['date'] = aoman_date
             aoman['time'] = aoman_time
             # Tack the maneuver to the Master List
             # Tacking the command to the Master list doesn't really do much if there
-            # is no AOUPTARQ command. But it allows you to search for subsequent maneuver 
+            # is no AOUPTARQ command. But it allows you to search for subsequent maneuver
             # commands
             self.master_list.append(aoman)
 
@@ -684,18 +712,18 @@ class BackstopHistory(object):
         if RTS_start_date is not None:
             # Process the specified RTS file and get a time-stamped numpy array of the data
             cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
-    
+
             # Now convert the numpy array into SKA.Parse command format which is a list of dicts
             LTCTI_bs_cmds = self.RTS.convert_ACIS_RTS_to_ska_parse(cmd_list)
-   
+
             # The LTCTI either ran to completion or was interruopted by the Return to Science
             # load.  Trim any LTCTI CLD commands that occurred ON or AFTER the
-            # Return to Science Time of First Command. 
+            # Return to Science Time of First Command.
             trimmed_LTCTI_bs_cmds = self.Trim_bs_cmds_After_Date(Date_of_First_Command, LTCTI_bs_cmds)
-    
+
             # Concatenate the LTCTI commands to the Master list
             self.master_list += trimmed_LTCTI_bs_cmds
-    
+
         # Finally,  concatenate the review load taking all the commands
         # to the master list.
         # NOTE: In subsequent calls to this method the TOFC of rev_bs_cmds will be
@@ -707,12 +735,12 @@ class BackstopHistory(object):
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         return self.master_list
-    
-    
+
+
 #-------------------------------------------------------------------------------
 #
 # Combine107 - Combine the Continuity backstop commands with the review load
-#              backstop commands, without overlap and without including any 
+#              backstop commands, without overlap and without including any
 #              command after the specified SCS-107 time
 #
 #                 Call this when you are reviewing an SCS-107 load
@@ -721,7 +749,7 @@ class BackstopHistory(object):
     def Combine107(self, cont_bs_cmds, vo_bs_cmds, rev_bs_cmds, shutdown_date):
         """
          Combine the Continuity backstop commands with the review load
-         backstop commands, without overlap IN THE SIENCE LOAD and without including any 
+         backstop commands, without overlap IN THE SIENCE LOAD and without including any
          SCIENCE command after the specified SCS-107 time.  The Continuity load is
          cut at the time of shutdown.
 
@@ -743,7 +771,7 @@ class BackstopHistory(object):
              3) Check for a LTCTI
 
              4) Trim the beginning of the VO load to eliminate that part of the
-                continuity load you are keeping.  
+                continuity load you are keeping.
 
              5) Trim the back end of the VR file to the Review load start time
 
@@ -802,16 +830,16 @@ class BackstopHistory(object):
             eachcmd['date'] = DateTime(base_time).date
             # Increment the base time by one second
             base_time += 1.0
-        
+
         # Now concatenate scs107 commands specific to this event to the master list
-        # which has been trimmed to include only those commands that executed prior to 
+        # which has been trimmed to include only those commands that executed prior to
         # the shutdown. No need to sort these at this point, because the base time was
         # the last time of the trimmed continuity load plus 1 second.
         self.master_list += scs107_bs_cmds
 
 
         # STEP 3
-        self.logger.info("STEP - 3 Check for a LTCTI between: %s - %s" % (self.master_list[-1]['date'], 
+        self.logger.info("STEP - 3 Check for a LTCTI between: %s - %s" % (self.master_list[-1]['date'],
                                                                           rev_bs_cmds[0]['date']))
         # Next we determine if there is a Long Term CTI run that was done between the
         # last time in the master list and the time of the first command in "rev_bs_cmds"
@@ -821,20 +849,20 @@ class BackstopHistory(object):
         if RTS_start_date is not None:
             # Process the specified RTS file and get a time-stamped numpy array of the data
             cmd_list = self.RTS.processRTS(self.RTS.RTS_name, self.RTS.SCS_NUM, self.RTS.NUM_HOURS, RTS_start_date)
-    
+
             # Now convert the numpy array into SKA.Parse command format which is a list of dicts
             LTCTI_bs_cmds = self.RTS.convert_ACIS_RTS_to_ska_parse(cmd_list)
-    
+
             # The LTCTI either ran to completion or was interruopted by the Return to Science
             # load.  Trim any LTCTI CLD commands that occurred ON or AFTER the
-            # Return to Science Time of First Command. 
+            # Return to Science Time of First Command.
             trimmed_LTCTI_bs_cmds = self.Trim_bs_cmds_After_Date(Date_of_First_Command, LTCTI_bs_cmds)
-    
+
             # Concatenate the LTCTI run to the master list
             self.master_list += trimmed_LTCTI_bs_cmds
             # Sort the master list
             self.master_list = sorted(self.master_list, key=lambda k: k['time'])
-    
+
         # STEP 4
         vo_bs_cmds_trimmed = self.Trim_bs_cmds_Before_Date(vo_cut_date, vo_bs_cmds)
 
@@ -853,12 +881,12 @@ class BackstopHistory(object):
         # Finally,  concatenate the review load taking all the commands
         # to the master list
         newlist =  self.master_list + rev_bs_cmds
- 
+
         # sort them
         self.master_list = sorted(newlist, key=lambda k: k['time'])
 
         # Return the expanded Master List to the caller
-        return self.master_list 
+        return self.master_list
 
 
     #-------------------------------------------------------------------------------
@@ -888,7 +916,7 @@ class BackstopHistory(object):
 
         combofile.close()
 
-    
+
     #-------------------------------------------------------------------------------
     #
     # Trim_bs_commands_After_Date - Given a list of backstop commands, remove any command
@@ -903,11 +931,11 @@ class BackstopHistory(object):
         """
         Given a list of backstop commands, remove any command ON or *AFTER* the specified time
 
-        This can be confusing - you want to throw away all those commands that occur 
+        This can be confusing - you want to throw away all those commands that occur
         ON or AFTER the specified time. You want to keep everything that occurs BEFORE the
         cutoff time.
 
-        INPUTS: Chandra date or time (either is ok)  
+        INPUTS: Chandra date or time (either is ok)
 
                 List of backstop commands.
 
@@ -915,7 +943,7 @@ class BackstopHistory(object):
 
         NOTE: John Scott assures me that they try to schedule the first
               command of the new load to be either between loads or in between two
-              commands in the old load.  Also, they will not lengthen an observation 
+              commands in the old load.  Also, they will not lengthen an observation
               by having the stop science come much later than it did in the broken load.
               They tried that once and there were myriad complaints.
         """
@@ -924,12 +952,12 @@ class BackstopHistory(object):
 
         # Now trim the list by including only those backstop commands that occur after the time.
         trimmed_list = [cmd for cmd in cmd_list if cmd['time'] < trim_time]
-       
+
         # Return the trimmed list
         return trimmed_list
 
 
-    
+
     #-------------------------------------------------------------------------------
     #
     # Trim_bs_cmds_Before_Date - Given a list of backstop commands, remove any command
@@ -948,7 +976,7 @@ class BackstopHistory(object):
         the specified time. You want to keep everything that occurs ON or AFTER the
         cutoff time.
 
-        INPUTS: Chandra date or time (either is ok)  
+        INPUTS: Chandra date or time (either is ok)
                 List of backstop commands.
 
         OUTPUTS: Trimmed list of backstop commands
@@ -956,7 +984,7 @@ class BackstopHistory(object):
         NOTE: John Scott assures me that you want to do a "less than" comparison
               on times and not less than or equal. Also they try to schedule the first
               command of the new load to be either between loads or in between two
-              commands in the old load.  Also, they will not lengthen an observation 
+              commands in the old load.  Also, they will not lengthen an observation
               by having the stop science come much later than it did in the broken load.
               They tried that once and there were myriad complaints.
         """
@@ -965,7 +993,7 @@ class BackstopHistory(object):
 
         # Now trim the list by KEEPING only those backstop commands that occur AFTER the time.
         trimmed_list = [cmd for cmd in cmd_list if cmd['time'] >= trim_time]
-       
+
         # Return the trimmed list
         return trimmed_list
 
@@ -980,13 +1008,13 @@ class BackstopHistory(object):
     #                 INPUTS: base_dir  (e.g. '/data/acis/LoadReviews/2017/')
     #                         base_load (e.g. 'AUG3017')
     #                         chain_length - the number of backtracks you want
-    #                         to make.  
+    #                         to make.
     #
     #                OUTPUTS: Array of records for each back chain through the
     #                         Continuity files.
-    #            
-    #    VITALLY IMPORTANT!!!!!!! The January 30, 2017 load was the FIRST LOAD 
-    #                             to have the Continuity text file stored. 
+    #
+    #    VITALLY IMPORTANT!!!!!!! The January 30, 2017 load was the FIRST LOAD
+    #                             to have the Continuity text file stored.
     #                             Therefore you cannont back Chain further beyond
     #                             The January 30th load.
     #
@@ -997,30 +1025,30 @@ class BackstopHistory(object):
         chain length, this method will successively backtrack through the
         Continuity text files of each load starting with the
         base load, and record the continuity information in a numpy array
-    
+
         INPUTS: base_dir  (e.g. '/data/acis/LoadReviews/2017/AUG3017/ofls')
-                
+
                               chain_length - the number of backtracks you want
-                             to make.  
-    
+                             to make.
+
         OUTPUTS: Array of records for each back chain through the
                  Continuity files.
-                
+
                  Example, for inputs:
                                      base_dir = '/data/acis/LoadReviews/2017/AUG3017/ofls'
                                      chain_length = 4
-    
+
                                       The output would be:
      ('AUG3017', '/data/acis/LoadReviews/2017/AUG2817/oflsb', 'TOO', '2017:242:23:35:01.28')
      ('AUG2817', '/data/acis/LoadReviews/2017/AUG2517/oflsc', 'Normal', 'None')
      ('AUG2517', '/data/acis/LoadReviews/2017/AUG1917/oflsa', 'TOO', '2017:237:03:30:01.28')
      ('AUG1917', '/data/acis/LoadReviews/2017/AUG1417/oflsb', 'TOO', '2017:231:15:42:18.91')
- 
-        VITALLY IMPORTANT!!!!!!! The January 30, 2017 load was the FIRST LOAD 
-                                 to have the Continuity text file stored. 
+
+        VITALLY IMPORTANT!!!!!!! The January 30, 2017 load was the FIRST LOAD
+                                 to have the Continuity text file stored.
                                  Therefore you cannont back Chain further beyond
                                  The January 30th load.
-   
+
         """
         # Create an empty load chain array
         load_chain = np.array([], dtype=self.cont_dtype)
@@ -1028,7 +1056,7 @@ class BackstopHistory(object):
         # Extract the base load week from the full path
         # This is entered in the first column of the resultant array
         base_load_week = os.path.split(base_load_dir)[-2]
-        # Extract the continuity info from the Load week. 
+        # Extract the continuity info from the Load week.
         # REMEMBER: this information is with regard to the
         # input load. It's the Continuity file that leads to the
         # Review/input; whether the review/input load is Normal, TOO
@@ -1036,7 +1064,7 @@ class BackstopHistory(object):
         # First Command is.
         continuity_info = self.get_continuity_file_info(base_load_dir)
 
-        # Count the number of links you have added because the 
+        # Count the number of links you have added because the
         # continuity file exists. Use that to know when you've collected enough
         chain_links = 0
 
@@ -1052,9 +1080,9 @@ class BackstopHistory(object):
         # If you have not exceeded the requested chain length and
         # there is continuity info, tack it onto the load chain array
         while len(load_chain) < chain_length and continuity_info[0] is not None:
-    
+
             continuity_load_path = continuity_info[0]
-    
+
             # Load up an entry in the array for this load
             load_chain = np.r_[load_chain,
                                 np.array( [ (base_load_week,
@@ -1064,14 +1092,14 @@ class BackstopHistory(object):
                                 dtype = self.cont_dtype)  ]
 
             # Try to do it again
-       
+
             # Extract the base load week from the returned full path
             # This is entered in the first column of the resultant array
             base_load_week = continuity_load_path.split('/')[-2]
 
             # Get the continuity info for this new week
             continuity_info = self.get_continuity_file_info(continuity_load_path)
-             
+
 
         # Return the array of back chains
         return load_chain
@@ -1079,21 +1107,21 @@ class BackstopHistory(object):
     #-------------------------------------------------------------------------------
     #
     # FindLTCTIrun - Given a path to a Non Load Event Tracking file, a start time
-    #                 and a stop time, search the Tracking file for any Long Term 
+    #                 and a stop time, search the Tracking file for any Long Term
     #                 CTI run (LTCTI) that occurred between the start and stop times.
     #
     #-------------------------------------------------------------------------------
     def FindLTCTIrun(self, tstart, tstop):
         """
         Given a path to a Non Load Event Tracking file, a start time
-        and a stop time, search the Tracking file for any Long Term 
+        and a stop time, search the Tracking file for any Long Term
         CTI run (LTCTI) that occurred between the start and stop times.
-    
+
         What you want to use for Start and Stop times are the SCS-107
         times for tstart and the time of first command for the replan load
 
         The path to the Non Load Event Tracking file (NLET) is a constructor argument
-        so that users can have their own version of the file. However the 
+        so that users can have their own version of the file. However the
         format of the file is fixed and this method expects a certain format.
         """
         # Convert the input tstart and tstop to seconds - this allows the
@@ -1101,7 +1129,7 @@ class BackstopHistory(object):
         # convenient.
         tstart = DateTime(tstart).secs
         tstop = DateTime(tstop).secs
-    
+
         # Initialize the return values to None
         ltcti_date = None
         ltcti_rts_file = None
@@ -1111,19 +1139,19 @@ class BackstopHistory(object):
         # The Non Load Event Tracking file is an input so that different
         # users of this module can have different NLET files.
         nletfile = open(self.NLET_tracking_file_path, 'r')
-    
+
         # Get the first line
         nletline = nletfile.readline()
-    
-        # Process each line. If it starts with a # then ignore it - it's a 
+
+        # Process each line. If it starts with a # then ignore it - it's a
         # comment
-        # 
+        #
         # for as long as you have input lines......
         while nletline:
             # Check to see if it's a comment line
             if nletline[0] != '#':
                 # Not a comment; check to see if it's a LTCTI line
-                # and if so, if the time stamp on the line is between 
+                # and if so, if the time stamp on the line is between
                 # tstart and tstop
                 #
                 # Split the line into tokens
@@ -1138,7 +1166,7 @@ class BackstopHistory(object):
                    (splitline[1] == 'LTCTI') and \
                    (DateTime(splitline[0]).secs >= tstart) and \
                    (DateTime(splitline[0]).secs <= tstop):
-    
+
                     # We have found a LTCTI event that affects our
                     # review load. Capture the values
                     ltcti_date = splitline[0]
@@ -1149,11 +1177,11 @@ class BackstopHistory(object):
 
             # Read the next line - or try to
             nletline = nletfile.readline()
-    
+
         # You've read all the lines. Close the file.
         nletfile.close()
-    
-        # Return items from any found netline; or Nones if 
+
+        # Return items from any found netline; or Nones if
         # no LTCTI line matched the requirements.
         return ltcti_date, ltcti_rts_file, ltcti_cap_number, ltcti_duration
 
@@ -1172,13 +1200,13 @@ class BackstopHistory(object):
         Using the path to a Non Load Event Tracking file, a start time
         and a stop time, search the Tracking file for any maneuver entry
         that occurred between the start and stop times.
-    
+
         Generally what you want to use for Start and Stop times are the SCS-107
         times for tstart and the time of first command for the replan load, or
         the start time for the review plus any accumulated loads or events.
 
         The path to the Non Load Event Tracking file (NLET) is a constructor argument
-        so that users can have their own version of the file. However the 
+        so that users can have their own version of the file. However the
         format of the file is fixed and this method expects a certain format.
         """
         # Convert the input tstart and tstop to seconds - this allows the
@@ -1186,7 +1214,7 @@ class BackstopHistory(object):
         # convenient.
         tstart = DateTime(dstart).secs
         tstop = DateTime(dstop).secs
-    
+
         # Initialize the return values to None
         MAN_date = None
         MAN_pitch = None
@@ -1195,23 +1223,23 @@ class BackstopHistory(object):
         MAN_q2 = None
         MAN_q3 = None
         MAN_q4 = None
-    
+
         # The Non Load Event Tracking file is an input so that different
         # users of this module can have different NLET files.
         nletfile = open(self.NLET_tracking_file_path, 'r')
-    
+
         # Get the first line
         nletline = nletfile.readline()
-    
-        # Process each line. If it starts with a # then ignore it - it's a 
+
+        # Process each line. If it starts with a # then ignore it - it's a
         # comment
-        # 
+        #
         # for as long as you have input lines......
         while nletline:
             # Check to see if it's a comment line
             if nletline[0] != '#':
                 # Not a comment; check to see if it's a MAN line
-                # and if so, if the time stamp on the line is between 
+                # and if so, if the time stamp on the line is between
                 # tstart and tstop
                 #
                 # Split the line into tokens
@@ -1226,7 +1254,7 @@ class BackstopHistory(object):
                    (splitline[1] == 'MAN') and \
                    (DateTime(splitline[0]).secs >= tstart) and \
                    (DateTime(splitline[0]).secs <= tstop):
-    
+
                     # We have found a MAN event that affects our
                     # review load. Capture the values
                     MAN_date = splitline[0]
@@ -1236,14 +1264,14 @@ class BackstopHistory(object):
                     MAN_q2 = splitline[5]
                     MAN_q3 = splitline[6]
                     MAN_q4 = splitline[7]
-     
+
             # Read the next line - or try to
             nletline = nletfile.readline()
-    
+
         # You've read all the lines. Close the file.
         nletfile.close()
-    
-        # Return items from any found netline; or Nones if 
+
+        # Return items from any found netline; or Nones if
         # no LTCTI line matched the requirements.
         return MAN_date, MAN_pitch, MAN_roll, MAN_q1, MAN_q2, MAN_q3, MAN_q4
 
@@ -1255,14 +1283,14 @@ class BackstopHistory(object):
     #                              the full path to the OFLS directory is written out.
     #
     #-------------------------------------------------------------------------------
-    def write_back_chain_to_pickle(self, format='ACIS', 
+    def write_back_chain_to_pickle(self, format='ACIS',
                                    file_path='/home/gregg/DPAMODEL/dpa_check/Chain.p', chain=None):
         """
         Given a backchain, and a file path, write the contents of the backchain to a pickle file.
         If the "format" argumen is "ACIS' then the full path to the ACIS ofls directory is
-        written out. If the format is anything except ACIS, then the load week 
+        written out. If the format is anything except ACIS, then the load week
         (e.g. JAN0917) is extracted from the second column in the backchain array and only that is
-        written out. 
+        written out.
 
         The latter option allows users with their own backstop tarball directory structure to
         utilize the backchain and obtain backstop command files.
@@ -1282,7 +1310,7 @@ class BackstopHistory(object):
         else: # Just write out the continuity week name from the second column (e.g. OCT0917)
             # Create an empty general array of detype self.cont_dtype
             gen_chain = np.array( [], dtype = self.cont_dtype)
-            
+
             # Run through the chain, modify the second column, and append it to the general
             # array
             for eachload in chain:
@@ -1308,14 +1336,14 @@ class BackstopHistory(object):
     #                           the full path to the OFLS directory is written out.
     #
     #-------------------------------------------------------------------------------
-    def write_back_chain_to_txt(self, format='ACIS', 
+    def write_back_chain_to_txt(self, format='ACIS',
                                 file_path='/home/gregg/DPAMODEL/dpa_check/Chain.txt', chain=None):
         """
         Given a backchain, and a file path, write the contents of the backchain to a text file.
         If the "format" argumen is "ACIS' then the full path to the ACIS ofls directory is
-        written out. If the format is anything except ACIS, then the load week 
+        written out. If the format is anything except ACIS, then the load week
         (e.g. JAN0917) is extracted from the second column in the backchain array and only that is
-        written out. 
+        written out.
 
         The latter option allows users with their own backstop tarball directory structure to
         utilize the backchain and obtain backstop command files.
@@ -1334,7 +1362,7 @@ class BackstopHistory(object):
         else: # Just write out the continuity week name from the second column (e.g. OCT0917)
             # Create an empty general array of detype self.cont_dtype
             gen_chain = np.array( [], dtype = self.cont_dtype)
-            
+
             # Run through the chain, modify the second column, and append it to the general
             # array
             for eachload in chain:
@@ -1361,7 +1389,7 @@ class BackstopHistory(object):
     #-------------------------------------------------------------------------------
     def read_back_chain_from_txt(self, file_path='/home/gregg/DPAMODEL/dpa_check/Chain.txt'):
         """
-        Given a path to a txt file written by write_back_chain_to_txt, 
+        Given a path to a txt file written by write_back_chain_to_txt,
         read the contents of the text file and store it in an array
         using DTYPE: self.cont_dtype
         """
