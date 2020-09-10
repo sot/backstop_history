@@ -37,14 +37,19 @@ class LTCTI_ACIS_commands(object):
 
          # Initialize the recognized command list
         self.cmd_list = ['WSVIDALLDN',
-                         'WSPOW08E1E',
-                         'WT00C62014',
                          'XTZ0000005', 
                          'RS_0000001',
                          'RH_0000001',
                          'AA00000000',
                          'WSPOW00000',
-                         'WSPOW08002']
+                         'WSPOW0002A',
+                         'WSPOW08002',
+                         'WSPOW08F3E',
+                         'WT00C60014',
+                         'WSPOW08E1E',
+                         'WT00C62014',
+                         'WSPOW3E03E',
+                         'WT00CA8014']
          
         self.cmd_vals = {'XTZ0000005': {'CMDS': '4',
                                         'WORDS': '4',
@@ -90,14 +95,46 @@ class LTCTI_ACIS_commands(object):
                                         'WORDS': '7',
                                         'PACKET': 'PACKET(40)= D8000070007030500200000000000010000'},
                           
-                         'WSPOW08E1E': {'CMDS': '42',
-                                        'WORDS': '73',
-                                        'PACKET': 'PACKET(40)= D8000070007030500200000000000019999'},
+                         'WSPOW0002A': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D80000700073E800020000000000001002A'},
                           
-                         'WT00C62014': {'CMDS': '101',
-                                        'WORDS': '102',
-                                        'PACKET': 'PACKET(40)= D8000070007030500200000000000011111'}
-                                    
+
+
+                         'WSPOW08F3E': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D80000700071A9E00200000008F0001003E'},
+
+                         'WT00C60014': {'CMDS': '87', 
+                                        'WORDS': '150',
+                                        'PACKET': 'PACKET(40)= D8000960096381600090004C357001400C6237A0'},    
+
+
+
+
+                         'WSPOW08E1E': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D8000070007381F00200000008E0001001E'},
+                          
+                         'WT00C62014': {'CMDS': '87',
+                                        'WORDS': '150',
+                                        'PACKET': 'PACKET(40)= D8000960096381A00090004E3C1201400C6237A0'},
+
+ 
+
+
+                         'WSPOW3E03E': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D80000700071AD50020000003E00001003E'},
+                           
+                         'WT00CA8014': {'CMDS': '87',
+                                        'WORDS': '150',
+                                        'PACKET': 'PACKET(40)= D800096009639CF0009000405F5801400CA657A0'}
+                             
+
+
+
+                             
                         } # END Command Constants Dictionary
 
 

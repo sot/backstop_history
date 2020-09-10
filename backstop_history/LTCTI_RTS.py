@@ -98,14 +98,14 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
     # Constructor
     def __init__(self, RTS_file_loc):
         # Create the rec array dtype for the mnemonics.hrd file read
-        self.RTS_dtype = [('date', '|S20'),
+        self.RTS_dtype = [('date', '|U20'),
                           ('time','<f8'),
-                          ('statement', '|S20'),           
-                          ('mnemonic', '|S20'), 
-                          ('substitution_parameter',  '|S20'),
-                          ('substitution_parameter_value',  '|S20'),
+                          ('statement', '|U20'),           
+                          ('mnemonic', '|U20'), 
+                          ('substitution_parameter',  '|U20'),
+                          ('substitution_parameter_value',  '|U20'),
                           ('DELTA','<f8'),
-                          ('SCS_NUM', '|S5')]
+                          ('SCS_NUM', '|U5')]
         self.load_type = None
         self.RTS_name = None
         self.SCS_NUM = '135'
@@ -308,7 +308,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                     # It's a /CMD line so set the statement to /CMD
                     statement = '/CMD'
                 elif any(filter(acis_statement_match.match, split_line)):
-                    # It's a /CMD line so set the statement to /CMD
+                    # It's an ACIS line so set the statement to ACIS
                     statement = 'ACIS'
                 else:
                     # It's neither a /CMD or ACIS line so set the statement to None
