@@ -428,7 +428,11 @@ class BackstopHistory(object):
 
         # Read the commands located in that backstop file
         bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
-        bs_cmds = bs_cmds.as_list_of_dict()
+        # This next line will need to be restored once shiny is ready
+        # bs_cmds = bs_cmds.as_list_of_dict()
+        # The next two lines should be removed after shiny is ready
+        names = bs_cmds.colnames
+        bs_cmds = [{name: cmd[name] for name in names} for cmd in bs_cmds]
 
         self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s"
                          % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
@@ -468,7 +472,11 @@ class BackstopHistory(object):
         # Read the commands located in that backstop file and convert to
         # list of dict.
         bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
-        bs_cmds = bs_cmds.as_list_of_dict()
+        # This next line will need to be restored once shiny is ready
+        # bs_cmds = bs_cmds.as_list_of_dict()
+        # The next two lines should be removed after shiny is ready
+        names = bs_cmds.colnames
+        bs_cmds = [{name: cmd[name] for name in names} for cmd in bs_cmds]
 
         self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s'
                          % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
