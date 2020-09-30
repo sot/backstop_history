@@ -11,7 +11,7 @@ class LTCTI_ACIS_commands(object):
     or an FOT LTCTI RTS file, into another format such as SKA.Parse
     or FOT CR*.backstop format.
 
-         Usage: 
+         Usage:
                  import Backstop_Commands
                  BC = Backstop_commands()
                  expanded_cmds = PCLD.ProcessCLD(CLD_file_path, CLD_START_TIME, CAP_NUMBER)
@@ -24,20 +24,19 @@ class LTCTI_ACIS_commands(object):
               Therefore the first command in the array will occur 1.025 seconds
               after the start time argument of the call to ProcessCLD.
 
-           2) Every ACIS Ops LTCTI CLD file contains the SCS slot in which the CLD will be run.
-
+           2) Every ACIS Ops LTCTI CLD file contains the SCS slot in which the CLD will be run
     """
 
     # Constructor
     def __init__(self):
         # Create the rec array dtype for the mnemonics.hrd file read
-        self.mnemonics_DTYPE = [('packet_id', '|S23'), 
-                                ('cmd_id', '|S23'), 
+        self.mnemonics_DTYPE = [('packet_id', '|S23'),
+                                ('cmd_id', '|S23'),
                                 ('acis_table_hdr',  '|S23')]
 
          # Initialize the recognized command list
         self.cmd_list = ['WSVIDALLDN',
-                         'XTZ0000005', 
+                         'XTZ0000005',
                          'RS_0000001',
                          'RH_0000001',
                          'AA00000000',

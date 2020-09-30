@@ -115,9 +115,6 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
         # Directory where the class can find the CTI RTS files and FOT request file
         self.RTS_file_loc = RTS_file_loc
 
-#        self.start_date = None
-#        self.start_time = None
-
         self.present_time = None      # Variable used to store the time in seconds
                                       # of the last processed RTS command
 
@@ -182,17 +179,17 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
     #-------------------------------------------------------------------------------
     def convert_RTS_DELTA_to_secs(self, time_string):
         """
-        This method takes a string in the format: 
-    
+        This method takes a string in the format:
+
               ddd:hh:mm:ss
-    
+
         and converts it into seconds.
-    
+
               ddd = number of days (NOT DOY!!!!)
                hh = hours
                mm = minutes
                ss = seconds
-    
+
         IMPORTANT NOTE:  These input strings are NOT DOY time strings.  I.E. "ddd"
                          is NOT DAY of year.  "ddd" is equal to a number of days.
     
