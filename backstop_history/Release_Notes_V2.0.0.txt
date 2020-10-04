@@ -1,0 +1,119 @@
+
+Release Notes for Version 2.0.0 of Backstop History
+
+
+
+Change Description
+==================
+
+Backstop History recognizes 4 "kinds" of load types: Normal, TOO, SCS-107 and Full Stop.
+
+"Normal": Typical weekly loads where the Review load carries on at 
+the end of the Continuity load.
+
+“TOO”:  TOO interrupts the approved load (whether executing or not) in 
+the middle of the load, and the review load carries on from that point.
+
+“SCS-107”:  load is a Return To Science (RTS) load which is uploaded after 
+an SCS-107 was executed (science halted; vehicle load continues).
+
+“Full Stop”: RTS load which is uploaded after both the science and vehicle 
+loads have been halted.
+
+Up until the MAY2620 load, Backstop History looked for Non-Load events 
+(e.g. LTCTI measurements, ground commanded maneuvers ) only when a load was 
+interrupted by an SCS-107 or Full Stop. And then it only looked for events 
+between the stop time and the beginning of the Return To Science (RTS) load.
+
+At the end of May, 2020, we uploaded the MAY2620 Maneuver-Only load after
+the MAY2420 load was interrupted by a FULL STOP.  Prior to the start of
+the MAY2620 load a LTCTI measurement was initiated. There were no ACIS Stop
+Science commands at the start of the MAY2620 load. So if the LTCTI measurement 
+was begun such that did not run to completion BEFORE the MAY2620 load was begun, 
+it would continue to run, after the MAY2620 load started.
+
+During the MAY2620 load execution a LTCTI measurement was executed. 
+
+The MAY2820 load had 2 ACIS Stop Science commands near the beginning.
+This interrupted the LTCTI.
+
+The JUL2720 load was, in all respects, a Normal load executing science 
+observations. However there was a "pause" in the science observations, 
+built into the load, in order to allow the IRU Swap commanding. During 
+this "Science Pause", a LTCTI measurement was executed. A complicating 
+factor was that it was not known when, during the pause, the 6 hour 
+LTCTI run would be started.  Therefore it was not known whether or 
+not it would run to completion or be interrupted by the two ACIS Stop 
+Science commands which were part of the JUL2720 load.
+
+The AUG3120 load was another Maneuver-Only load, following an SCS-107 
+halt of the AUG2420 load.  The AUG3120 load contained no ACIS commands. 
+A WSPOW0002A command was issued, during the AUG3120 load,  via CAP, to 
+turn on 3 FEPS. This also is a Non-Load event.
+
+Therefore Backstop History had to be modified to allow any Non-Load event 
+to occur in any of the four load "types". In addition the events could 
+occur anywhere within the load; may or may not be stopped by commanding in 
+the load in which it appears or the following review load.
+
+This update to Backstop History handles all these contingencies.
+
+Files Changed:
+============== 
+
+acis_thermal_check:
+
+Small change in ACIS state Builder to initialize the end time attribute 
+for event searches within the BSC object.At the beginning, it will 
+be the time of the last command in the Review Load
+
+https://github.com/acisops/acis_thermal_check/pull/34
+
+
+backstop-history:
+
+https://github.com/acisops/backstop_history/pull/13
+
+
+
+Testing:
+======== 
+
+OCT2118 - Normal RTS load after a STOP 
+
+MAY2420 - TOO load (tests typical TOO handling)
+        - Interrupted by STOP
+
+May2620 - STOP RTS Maneuver-Only load
+
+May2820 - Normal
+
+JUL2720 - Normal load with "science pause"
+        - LTCTI measurement during pause; may or may not have completed
+
+AUG3120 - SCS-107 RTS Maneuver-Only load
+        - WSPOW0002A Power command
+
+APR3020 - Hand edited test load to test LTCTI handling during TOO
+
+
+
+Interface impacts
+=================
+
+There are no interface impacts however this update must be installed at 
+the same time as the acis_thermal_check update listed in the Files Changed section above.
+
+
+
+Review
+====== 
+
+Objectives and Results by ACIS Ops
+
+
+Deployment Plan
+===============
+
+Deploy after the first segment of the load presently being reviewed, 
+starts execution.
