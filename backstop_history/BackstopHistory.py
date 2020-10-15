@@ -656,7 +656,7 @@ class BackstopHistory(object):
 
             Output: None returned by self.master_list has been updated with the LTCTI commands.
 
-            LRCTI's can occur during shutdowns, within a Normal load (JUL2720 IRU swap), and
+            LTCTI's can occur during shutdowns, within a Normal load (JUL2720 IRU swap), and
             across loads ( e.g. MAY2620---MAY2420).  So when processing LTCTI's the algorithm has
             to look for the first Stop Science command (AA00000000) that occurs AFTER the start of
             the LTCTI.
@@ -1341,7 +1341,7 @@ class BackstopHistory(object):
     #
     # Find_Events_Between_Dates - Given a path to a Non Load Event Tracking file,
     #                             a start time and a stop time, search the Tracking
-    #                             file for any Long Term CTI run (LTCTI) that
+    #                             file for any NLET event that
     #                             occurred between the start and stop times.
     #
     #-------------------------------------------------------------------------------
