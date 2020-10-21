@@ -61,7 +61,7 @@ This update to Backstop History handles all these contingencies.
 Testing had to be modified because with the new MP capabilities, each test
 must utilize an NLET file as it was at the time the production load was reviewed.
 
-acis_thermal_check needed to be modified as well inorder to accomodate 
+acis_thermal_check needed to be modified as well in order to accommodate 
 the updates in acisops/backstop_history#13.
 
 The ACIS state builder records the end date of the review load in an attribute.
