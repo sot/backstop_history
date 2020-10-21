@@ -58,7 +58,7 @@ the load in which it appears or the following review load.
 
 This update to Backstop History handles all these contingencies.
 
-Testing had to be modified because with the new MP capabilites, each test
+Testing had to be modified because with the new MP capabilities, each test
 must utilize an NLET file as it was at the time the production load was reviewed.
 
 acis_thermal_check needed to be modified as well inorder to accomodate 
@@ -138,9 +138,7 @@ APR3020 - Hand edited test load to test LTCTI handling during TOO
 Interface impacts
 =================
 
-There are no interface impacts however this update must be installed at 
-the same time as the acis_thermal_check and the model updates listed 
-in the Files Changed section above.
+There are no interface impacts.
 
 
 
