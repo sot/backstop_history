@@ -58,14 +58,24 @@ the load in which it appears or the following review load.
 
 This update to Backstop History handles all these contingencies.
 
+Testing had to be modified because with the new MP capabilites, each test
+must utilize an NLET file as it was at the time the production load was reviewed.
+
+acis_thermal_check needed to be modified as well inorder to accomodate 
+the updates in acisops/backstop_history#13.
+
+The ACIS state builder records the end date of the review load in an attribute.
+
+It also improves the regression testing framework to allow for different NLET files in the tests, as well as allow the user to specify a directory where the test artifacts (e.g. states.dat, temperatures.dat) should be dumped. By default, these are dumped to a temporary directory, then deleted after use.  Now the location can be specified for later inspection,
+as the files are not deleted.
+
+
+
+
 Files Changed:
 ============== 
 
 acis_thermal_check:
-
-Small change in ACIS state Builder to initialize the end time attribute 
-for event searches within the BSC object.At the beginning, it will 
-be the time of the last command in the Review Load
 
 https://github.com/acisops/acis_thermal_check/pull/34
 
@@ -75,9 +85,36 @@ backstop-history:
 https://github.com/acisops/backstop_history/pull/13
 
 
+Model PR's:
+
+https://github.com/acisops/dpa_check/pull/26
+https://github.com/acisops/dea_check/pull/28
+https://github.com/acisops/psmc_check/pull/23
+https://github.com/acisops/acisfp_check/pull/27
+https://github.com/acisops/fep1_mong_check/pull/4
+https://github.com/acisops/fep1_actel_check/pull/4
+https://github.com/acisops/bep_pcb_check/pull/4
+
 
 Testing:
 ======== 
+
+Regression Test Suite:
+
+APR0217B
+AUG2517C
+AUG3017A
+JUL2717A
+JUL3117B
+MAR0617A
+MAR0817B
+MAR1117A
+MAR1517B
+MAR2017E
+SEP0417A
+SEP0917C 
+
+Additional Tests which exercise the new features:
 
 OCT2118 - Normal RTS load after a STOP 
 
@@ -102,7 +139,8 @@ Interface impacts
 =================
 
 There are no interface impacts however this update must be installed at 
-the same time as the acis_thermal_check update listed in the Files Changed section above.
+the same time as the acis_thermal_check and the model updates listed 
+in the Files Changed section above.
 
 
 
