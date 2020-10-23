@@ -11,7 +11,7 @@ class LTCTI_ACIS_commands(object):
     or an FOT LTCTI RTS file, into another format such as SKA.Parse
     or FOT CR*.backstop format.
 
-         Usage: 
+         Usage:
                  import Backstop_Commands
                  BC = Backstop_commands()
                  expanded_cmds = PCLD.ProcessCLD(CLD_file_path, CLD_START_TIME, CAP_NUMBER)
@@ -24,27 +24,31 @@ class LTCTI_ACIS_commands(object):
               Therefore the first command in the array will occur 1.025 seconds
               after the start time argument of the call to ProcessCLD.
 
-           2) Every ACIS Ops LTCTI CLD file contains the SCS slot in which the CLD will be run.
-
+           2) Every ACIS Ops LTCTI CLD file contains the SCS slot in which the CLD will be run
     """
 
     # Constructor
     def __init__(self):
         # Create the rec array dtype for the mnemonics.hrd file read
-        self.mnemonics_DTYPE = [('packet_id', '|S23'), 
-                                ('cmd_id', '|S23'), 
+        self.mnemonics_DTYPE = [('packet_id', '|S23'),
+                                ('cmd_id', '|S23'),
                                 ('acis_table_hdr',  '|S23')]
 
          # Initialize the recognized command list
         self.cmd_list = ['WSVIDALLDN',
-                         'WSPOW08E1E',
-                         'WT00C62014',
-                         'XTZ0000005', 
+                         'XTZ0000005',
                          'RS_0000001',
                          'RH_0000001',
                          'AA00000000',
                          'WSPOW00000',
-                         'WSPOW08002']
+                         'WSPOW0002A',
+                         'WSPOW08002',
+                         'WSPOW08F3E',
+                         'WT00C60014',
+                         'WSPOW08E1E',
+                         'WT00C62014',
+                         'WSPOW3E03E',
+                         'WT00CA8014']
          
         self.cmd_vals = {'XTZ0000005': {'CMDS': '4',
                                         'WORDS': '4',
@@ -90,14 +94,46 @@ class LTCTI_ACIS_commands(object):
                                         'WORDS': '7',
                                         'PACKET': 'PACKET(40)= D8000070007030500200000000000010000'},
                           
-                         'WSPOW08E1E': {'CMDS': '42',
-                                        'WORDS': '73',
-                                        'PACKET': 'PACKET(40)= D8000070007030500200000000000019999'},
+                         'WSPOW0002A': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D80000700073E800020000000000001002A'},
                           
-                         'WT00C62014': {'CMDS': '101',
-                                        'WORDS': '102',
-                                        'PACKET': 'PACKET(40)= D8000070007030500200000000000011111'}
-                                    
+
+
+                         'WSPOW08F3E': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D80000700071A9E00200000008F0001003E'},
+
+                         'WT00C60014': {'CMDS': '87', 
+                                        'WORDS': '150',
+                                        'PACKET': 'PACKET(40)= D8000960096381600090004C357001400C6237A0'},    
+
+
+
+
+                         'WSPOW08E1E': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D8000070007381F00200000008E0001001E'},
+                          
+                         'WT00C62014': {'CMDS': '87',
+                                        'WORDS': '150',
+                                        'PACKET': 'PACKET(40)= D8000960096381A00090004E3C1201400C6237A0'},
+
+ 
+
+
+                         'WSPOW3E03E': {'CMDS': '5',
+                                        'WORDS': '7',
+                                        'PACKET': 'PACKET(40)= D80000700071AD50020000003E00001003E'},
+                           
+                         'WT00CA8014': {'CMDS': '87',
+                                        'WORDS': '150',
+                                        'PACKET': 'PACKET(40)= D800096009639CF0009000405F5801400CA657A0'}
+                             
+
+
+
+                             
                         } # END Command Constants Dictionary
 
 

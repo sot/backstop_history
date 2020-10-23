@@ -98,14 +98,14 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
     # Constructor
     def __init__(self, RTS_file_loc):
         # Create the rec array dtype for the mnemonics.hrd file read
-        self.RTS_dtype = [('date', '|S20'),
+        self.RTS_dtype = [('date', '|U20'),
                           ('time','<f8'),
-                          ('statement', '|S20'),           
-                          ('mnemonic', '|S20'), 
-                          ('substitution_parameter',  '|S20'),
-                          ('substitution_parameter_value',  '|S20'),
+                          ('statement', '|U20'),           
+                          ('mnemonic', '|U20'), 
+                          ('substitution_parameter',  '|U20'),
+                          ('substitution_parameter_value',  '|U20'),
                           ('DELTA','<f8'),
-                          ('SCS_NUM', '|S5')]
+                          ('SCS_NUM', '|U5')]
         self.load_type = None
         self.RTS_name = None
         self.SCS_NUM = '135'
@@ -114,9 +114,6 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
 
         # Directory where the class can find the CTI RTS files and FOT request file
         self.RTS_file_loc = RTS_file_loc
-
-#        self.start_date = None
-#        self.start_time = None
 
         self.present_time = None      # Variable used to store the time in seconds
                                       # of the last processed RTS command
@@ -182,17 +179,17 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
     #-------------------------------------------------------------------------------
     def convert_RTS_DELTA_to_secs(self, time_string):
         """
-        This method takes a string in the format: 
-    
+        This method takes a string in the format:
+
               ddd:hh:mm:ss
-    
+
         and converts it into seconds.
-    
+
               ddd = number of days (NOT DOY!!!!)
                hh = hours
                mm = minutes
                ss = seconds
-    
+
         IMPORTANT NOTE:  These input strings are NOT DOY time strings.  I.E. "ddd"
                          is NOT DAY of year.  "ddd" is equal to a number of days.
     
@@ -308,7 +305,7 @@ dtype=[('date', 'S20'), ('time', '<f8'), ('statement', 'S20'), ('mnemonic', 'S20
                     # It's a /CMD line so set the statement to /CMD
                     statement = '/CMD'
                 elif any(filter(acis_statement_match.match, split_line)):
-                    # It's a /CMD line so set the statement to /CMD
+                    # It's an ACIS line so set the statement to ACIS
                     statement = 'ACIS'
                 else:
                     # It's neither a /CMD or ACIS line so set the statement to None
