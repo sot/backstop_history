@@ -34,7 +34,6 @@ from pathlib import Path
 
 from backstop_history import LTCTI_RTS
 
-import Ska.ParseCM
 import kadi.commands
 
 from Chandra.Time import DateTime
@@ -337,15 +336,40 @@ class BackstopHistory(object):
                      The time of interrupt if the REVIEW load is an interrupt
                      load.
         """
+        # `oflsdir` is like <root>/2018/MAY2118/ofls
+        oflsdir = Path(oflsdir)
+
+        # Require that oflsdir starts with /data/acis unless the environment
+        # variable ALLOW_NONSTANDARD_OFLSDIR is set.
+        allow_nonstandard_oflsdir = 'ALLOW_NONSTANDARD_OFLSDIR' in os.environ
+        if (not allow_nonstandard_oflsdir
+                and oflsdir.parts[:3] != ('/', 'data', 'acis')):
+            raise ValueError('--backstop_file must start with /data/acis. To remove this '
+                             'restriction set the environment variable '
+                             'ALLOW_NONSTANDARD_OFLSDIR to any value.')
+
+        oflsdir_root = oflsdir.parents[2]  # gives <root>
+
         # Does a Continuity file exist for the input path
-        ofls_cont_fn = os.path.join(oflsdir, self.continuity_file_name)
-        if os.path.exists(ofls_cont_fn):
+        ofls_cont_fn = oflsdir / self.continuity_file_name
+
+        if ofls_cont_fn.exists():
 
             # Open the Continuity text file in the ofls directory and read the name of the
             # continuity load date (e.g. FEB2017).  then close the file
             ofls_cont_file = open(ofls_cont_fn, 'r')
-            # Read the first line...the pat to the continuity load
-            continuity_load_path = ofls_cont_file.readline()[:-1]
+
+            # Read the first line...the path to the continuity load. The
+            # continuity path in the file is hardwired to a /data/acis path,
+            # independent of user-specified `oflsdir` (e.g.
+            # /data/acis/LoadReviews/2018/MAY2118/ofls), so if a non-standard
+            # OFLS dir path is allowed then fix that by putting the last 3 parts
+            # (2018/MAY2118/ofls) onto the oflsdir root.
+            pth = Path(ofls_cont_file.readline().strip())
+            if allow_nonstandard_oflsdir:
+                continuity_load_path = str(Path(oflsdir_root, *pth.parts[-3:]))
+            else:
+                continuity_load_path = str(pth)
 
             # Read the entire second line - load type and possibly the interrupt time
             type_line = ofls_cont_file.readline()
@@ -381,7 +405,7 @@ class BackstopHistory(object):
         """
         Given the path to an ofls directory, this method will call the "globfile"
         to obtain the name of the backstop file that represents the built load.
-        It then calls Ska.ParseCM.read_backstop to obtain the list of commands
+        It then calls kadi.commands.get_cmds_from_backstop to obtain the list of commands
         Review and Continuity loads appear in the ....ofls/ subdir and always
         begin with the characters "CR"
 
@@ -402,10 +426,12 @@ class BackstopHistory(object):
         bs_name = os.path.split(bs_file_path)[-1]
 
         # Read the commands located in that backstop file
-        bs_cmds = Ska.ParseCM.read_backstop(bs_file_path)
-        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s" % (len(bs_cmds),
-                                                                                         bs_cmds[0]['date'],
-                                                                                         bs_cmds[-1]['date']))
+        bs_cmds = kadi.commands.get_cmds_from_backstop(bs_file_path)
+        bs_cmds = bs_cmds.as_list_of_dict()
+
+        self.logger.info("GET_BS_CMDS - Found %d backstop commands between %s and %s"
+                         % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
+
         # Return both the backstop commands in cmd states format and the
         # name of the backstop file
 
@@ -422,7 +448,7 @@ class BackstopHistory(object):
         """
         Given the path to an ofls directory, this method will call the "globfile"
         to obtain the name of the backstop file that represents the built load.
-        It then calls Ska.ParseCM.read_backstop to obtain the list of commands
+        It then calls kadi.commands.get_cmds_from_backstop to obtain the list of commands
         Vehicle_only loads appear in the ....ofls/vehicle/ subdir and always
         begin with the characters "VR"
 
@@ -438,11 +464,13 @@ class BackstopHistory(object):
         # Extract the name of the backstop file from the path
         bs_name = os.path.split(backstop_file_path)[-1]
 
-        # Read the commands located in that backstop file
-        bs_cmds = Ska.ParseCM.read_backstop(backstop_file_path)
-        self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s' % (len(bs_cmds),
-                                                                                                   bs_cmds[0]['date'],
-                                                                                                   bs_cmds[-1]['date']))
+        # Read the commands located in that backstop file and convert to
+        # list of dict.
+        bs_cmds = kadi.commands.get_cmds_from_backstop(backstop_file_path)
+        bs_cmds = bs_cmds.as_list_of_dict()
+
+        self.logger.info('GET_VEHICLE_ONLY_CMDS - Found %d backstop commands between %s and %s'
+                         % (len(bs_cmds), bs_cmds[0]['date'], bs_cmds[-1]['date']))
 
         return bs_cmds, bs_name
 
@@ -1374,7 +1402,7 @@ class BackstopHistory(object):
 
         # Process each line. If it starts with a # then ignore it - it's a
         # comment
-        # 
+        #
         # for as long as you have input lines......
         while nletline:
 
@@ -1476,8 +1504,8 @@ class BackstopHistory(object):
                 # Extract the command type (e.g. 'ACISPKT' 'COMMAND_SW', 'ORBPOINT')
                 cmd_type = split_line[2].strip()
 
-                # Now split the 4th element of splitline - the "TLMSID" 
-                # section - on commas, 
+                # Now split the 4th element of splitline - the "TLMSID"
+                # section - on commas,
                 # grab the first element in the split list (e.g. TLMSID= RS_0000001)
                 # and split THAT on spaces
                 # and take the last item which is the command packet of interest (e.g. RS_0000001)
@@ -1507,14 +1535,14 @@ class BackstopHistory(object):
     #                              the full path to the OFLS directory is written out.
     #
     #-------------------------------------------------------------------------------
-    def write_back_chain_to_pickle(self, inst_format='ACIS', 
+    def write_back_chain_to_pickle(self, inst_format='ACIS',
                                    file_path='/home/gregg/DPAMODEL/dpa_check/Chain.p', chain=None):
         """
         Given a backchain, and a file path, write the contents of the backchain to a pickle file.
         If the "inst_format" argument is "ACIS' then the full path to the ACIS ofls directory is
-        written out. If the inst_format is anything except ACIS, then the load week 
+        written out. If the inst_format is anything except ACIS, then the load week
         (e.g. JAN0917) is extracted from the second column in the backchain array and only that is
-        written out. 
+        written out.
 
         The latter option allows users with their own backstop tarball directory structure to
         utilize the backchain and obtain backstop command files.
@@ -1534,7 +1562,7 @@ class BackstopHistory(object):
         else: # Just write out the continuity week name from the second column (e.g. OCT0917)
             # Create an empty general array of detype self.cont_dtype
             gen_chain = np.array( [], dtype = self.cont_dtype)
-            
+
             # Run through the chain, modify the second column, and append it to the general
             # array
             for eachload in chain:
@@ -1560,14 +1588,14 @@ class BackstopHistory(object):
     #                           the full path to the OFLS directory is written out.
     #
     #-------------------------------------------------------------------------------
-    def write_back_chain_to_txt(self, inst_format='ACIS', 
+    def write_back_chain_to_txt(self, inst_format='ACIS',
                                 file_path='/home/gregg/DPAMODEL/dpa_check/Chain.txt', chain=None):
         """
         Given a backchain, and a file path, write the contents of the backchain to a text file.
         If the "inst_format" argumen is "ACIS' then the full path to the ACIS ofls directory is
-        written out. If the inst_format is anything except ACIS, then the load week 
+        written out. If the inst_format is anything except ACIS, then the load week
         (e.g. JAN0917) is extracted from the second column in the backchain array and only that is
-        written out. 
+        written out.
 
         The latter option allows users with their own backstop tarball directory structure to
         utilize the backchain and obtain backstop command files.
@@ -1586,7 +1614,7 @@ class BackstopHistory(object):
         else: # Just write out the continuity week name from the second column (e.g. OCT0917)
             # Create an empty general array of detype self.cont_dtype
             gen_chain = np.array( [], dtype = self.cont_dtype)
-            
+
             # Run through the chain, modify the second column, and append it to the general
             # array
             for eachload in chain:
